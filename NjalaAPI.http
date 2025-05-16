@@ -1,0 +1,6 @@
+@NjalaAPI_HostAddress = http://localhost:5001
+
+GET {{NjalaAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
