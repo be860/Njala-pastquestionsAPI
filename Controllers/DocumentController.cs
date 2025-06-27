@@ -21,10 +21,45 @@ namespace NjalaAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllDocuments()
+        public async Task<IActionResult> GetAllDocuments(
+        int page = 1,
+        int pageSize = 10,
+        string? search = null,
+        string? courseCode = null,
+        int? year = null)
         {
+            // fetch all
             var docs = await _documentService.GetAllAsync();
-            return Ok(docs);
+
+            // apply filters
+            if (!string.IsNullOrWhiteSpace(search))
+                docs = docs.Where(d =>
+                    d.Title.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    d.Description.Contains(search, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+            if (!string.IsNullOrWhiteSpace(courseCode))
+                docs = docs.Where(d =>
+                    d.CourseCode.Equals(courseCode, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+            if (year.HasValue)
+                docs = docs.Where(d => d.Year == year.Value).ToList();
+
+            // paging
+            var total = docs.Count;
+            var items = docs
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return Ok(new
+            {
+                Items = items,
+                TotalItems = total,
+                Page = page,
+                PageSize = pageSize
+            });
         }
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)

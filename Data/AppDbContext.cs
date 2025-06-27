@@ -12,7 +12,8 @@ namespace NjalaAPI.Data
         public DbSet<Document> Documents { get; set; }
         public DbSet<DocumentDownload> DocumentDownloads { get; set; }
         public DbSet<OtpVerification> OtpVerifications { get; set; }
-
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -12,7 +12,8 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 
-// 1) Add DbContext
+
+// 1) Add DbContext using connection string from appsettings.Development.json
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -25,15 +26,10 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
     options.Password.RequireUppercase = false;
     options.User.RequireUniqueEmail = true;
 })
+
+
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders(); // Required for 2FA and UserManager services
-
-builder.Configuration
-    .SetBasePath(Directory.GetCurrentDirectory())
-    .AddJsonFile("appsettings.json", optional: false)
-    .AddJsonFile("appsettings.Development.json", optional: true) // ? loads secrets locally
-    .AddEnvironmentVariables();
-
 
 // 3) JWT Auth
 var jwtSettings = builder.Configuration.GetSection("Jwt");
@@ -57,29 +53,39 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(key)
     };
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"JWT failed: {context.Exception.Message}");
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            Console.WriteLine("JWT challenge triggered");
+            return Task.CompletedTask;
+        }
+    };
 });
-
 
 // Register core services
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IDocumentService, DocumentService>();
-builder.Services.AddScoped<ISmsService, SmsService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
-
+builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserService, UserService>();
 
 builder.Services.AddControllers();
-// Authorization
+
+// Authorization policies should already be configured here
 builder.Services.AddAuthorization();
 
-// Important: Register MVC controllers here
-
-
-
+// Swagger/OpenAPI
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Njala Past Questions API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Njala Past Questions API by Benjamin Franklin", Version = "v1" });
 
     var jwtSecurityScheme = new OpenApiSecurityScheme
     {
@@ -99,20 +105,20 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityDefinition(jwtSecurityScheme.Reference.Id, jwtSecurityScheme);
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        { jwtSecurityScheme, new string[] { } }
+        { jwtSecurityScheme, Array.Empty<string>() }
     });
 });
 
-// 6) CORS
+// CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", builder =>
-        builder.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+    options.AddPolicy("AllowAll", policy =>
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 });
 
 var app = builder.Build();
 
-// 7) Seed roles and SuperAdmin
+// Seed roles and SuperAdmin
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -150,12 +156,28 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// 8) Middleware pipeline
+// Middleware pipeline
 app.UseSwagger();
 app.UseSwaggerUI();
+app.UseStaticFiles();
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseDefaultFiles();
+
+// Test endpoints (remove in production)
+app.MapGet("/test-secret", (IConfiguration config) =>
+    Results.Ok(new
+    {
+        JwtKey = config["Jwt:Key"],
+        SmtpUser = config["EmailSettings:Username"]
+    })
+);
+
+app.MapGet("/test-connection", (IConfiguration config) =>
+    Results.Ok(config.GetConnectionString("DefaultConnection"))
+);
+
 app.MapControllers();
 app.Run();

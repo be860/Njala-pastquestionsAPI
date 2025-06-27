@@ -86,5 +86,45 @@ namespace NjalaAPI.Controllers
             var bytes = await System.IO.File.ReadAllBytesAsync(path);
             return File(bytes, "application/octet-stream", Path.GetFileName(path));
         }
+
+        [HttpPut("profile")]
+        public async Task<IActionResult> UpdateProfile([FromForm] UpdateProfileDto dto)
+        {
+            var userId = GetUserId();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) return NotFound("User not found.");
+
+            user.FullName = dto.FullName ?? user.FullName;
+
+            if (dto.Avatar != null && dto.Avatar.Length > 0)
+            {
+                var ext = Path.GetExtension(dto.Avatar.FileName);
+                var fileName = $"{Guid.NewGuid()}{ext}";
+                var savePath = Path.Combine("UploadedAvatars", fileName);
+                var fullPath = Path.Combine(Directory.GetCurrentDirectory(), savePath);
+
+                Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+                using var stream = new FileStream(fullPath, FileMode.Create);
+                await dto.Avatar.CopyToAsync(stream);
+
+                user.AvatarUrl = $"/{savePath.Replace("\\", "/")}";
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                user.FullName,
+                user.Email,
+                user.AvatarUrl
+            });
+        }
+
+        public class UpdateProfileDto
+        {
+            public string? FullName { get; set; }
+            public IFormFile? Avatar { get; set; }
+        }
+
     }
 }

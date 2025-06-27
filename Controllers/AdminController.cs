@@ -1,5 +1,4 @@
-﻿// Controllers/AdminController.cs
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using NjalaAPI.DTOs.User;
@@ -16,11 +15,16 @@ namespace NjalaAPI.Controllers
     {
         private readonly IUserService _userService;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IAuditService _auditService;
 
-        public AdminController(IUserService userService, UserManager<ApplicationUser> userManager)
+        public AdminController(
+            IUserService userService,
+            UserManager<ApplicationUser> userManager,
+            IAuditService auditService)
         {
             _userService = userService;
             _userManager = userManager;
+            _auditService = auditService;
         }
 
         [HttpGet]
@@ -28,8 +32,8 @@ namespace NjalaAPI.Controllers
         public async Task<IActionResult> GetAdmins(
             int page = 1, int pageSize = 10, string? search = null)
         {
-            var result = await _userService.GetAllUsersAsync(
-                page, pageSize, search, "Admin");
+            var result = await _userService.GetAllUsersAsync(page, pageSize, search, "Admin");
+            await _auditService.LogAsync("GetAdmins", "SuperAdmin fetched admin list.");
             return Ok(result);
         }
 
@@ -38,9 +42,14 @@ namespace NjalaAPI.Controllers
         public async Task<IActionResult> GetAdmin(Guid id)
         {
             var admin = await _userService.GetUserByIdAsync(id);
-            return admin != null && admin.Role == "Admin"
-                ? Ok(admin)
-                : NotFound();
+
+            if (admin != null && admin.Role == "Admin")
+            {
+                await _auditService.LogAsync("GetAdmin", $"SuperAdmin fetched admin with ID: {id}");
+                return Ok(admin);
+            }
+
+            return NotFound();
         }
 
         [HttpPost]
@@ -64,24 +73,39 @@ namespace NjalaAPI.Controllers
                 return BadRequest(result.Errors);
 
             await _userManager.AddToRoleAsync(user, "Admin");
+            await _auditService.LogAsync("CreateAdmin", $"Admin created: {user.Email}");
+
             return CreatedAtAction(nameof(GetAdmin), new { id = user.Id }, user);
         }
 
         [HttpPut("{id:guid}")]
         [Authorize(Roles = "SuperAdmin")]
-        public async Task<IActionResult> UpdateAdmin(
-            Guid id, UpdateUserDto dto)
+        public async Task<IActionResult> UpdateAdmin(Guid id, UpdateUserDto dto)
         {
             dto.Role = "Admin";
             var updated = await _userService.UpdateUserAsync(id, dto);
-            return updated != null ? Ok(updated) : NotFound();
+
+            if (updated != null)
+            {
+                await _auditService.LogAsync("UpdateAdmin", $"Admin updated: {updated.Email}");
+                return Ok(updated);
+            }
+
+            return NotFound();
         }
 
         [HttpDelete("{id:guid}")]
         [Authorize(Roles = "SuperAdmin")]
         public async Task<IActionResult> DeleteAdmin(Guid id)
-            => await _userService.DeleteUserAsync(id)
-               ? NoContent()
-               : NotFound();
+        {
+            var deleted = await _userService.DeleteUserAsync(id);
+            if (deleted)
+            {
+                await _auditService.LogAsync("DeleteAdmin", $"Admin deleted with ID: {id}");
+                return NoContent();
+            }
+
+            return NotFound();
+        }
     }
 }

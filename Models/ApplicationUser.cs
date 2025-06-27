@@ -8,6 +8,7 @@ namespace NjalaAPI.Models
         public required string FullName { get; set; }
         public string Role { get; set; } = "Student";
         public DateTime? LastLoginDate { get; set; }
+        public string? AvatarUrl { get; set; }
 
     }
 }
