@@ -488,4 +488,10 @@ appsettings.json
 appsettings.Development.json
 frontend/
 
+# Archives
+*.zip
+*.7z
+*.rar
+
+
 
