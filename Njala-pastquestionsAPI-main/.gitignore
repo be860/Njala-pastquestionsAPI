@@ -486,5 +486,6 @@ $RECYCLE.BIN/
 # don’t commit real secrets
 appsettings.json
 appsettings.Development.json
+frontend/
 
 
