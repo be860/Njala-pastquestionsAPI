@@ -6,10 +6,13 @@
 
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet)](https://dotnet.microsoft.com/)
 [![ASP.NET Core](https://img.shields.io/badge/ASP.NET_Core-8.0-512BD4?style=for-the-badge&logo=dotnet)](https://dotnet.microsoft.com/apps/aspnet)
+[![Next.js](https://img.shields.io/badge/Next.js-16.0-000000?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19.2-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![SQL Server](https://img.shields.io/badge/SQL_Server-CC2927?style=for-the-badge&logo=microsoft-sql-server&logoColor=white)](https://www.microsoft.com/sql-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-A comprehensive RESTful API for managing academic documents (past questions, research papers, exam preparation materials) at Njala University. Built with modern security practices, role-based access control, and enterprise-grade features.
+A comprehensive full-stack application for managing academic documents (past questions, research papers, exam preparation materials) at Njala University. Built with modern security practices, role-based access control, and enterprise-grade features.
 
 [Features](#-features) • [Quick Start](#-quick-start) • [API Documentation](#-api-documentation) • [Deployment](#-deployment)
 
@@ -19,7 +22,7 @@ A comprehensive RESTful API for managing academic documents (past questions, res
 
 ## 🌟 Overview
 
-The Njala Past Questions API is a production-ready backend system designed to streamline academic document management for universities. It provides secure authentication, role-based access control, comprehensive auditing, and seamless document handling capabilities.
+The Njala Past Questions System is a production-ready full-stack application designed to streamline academic document management for universities. It provides secure authentication, role-based access control, comprehensive auditing, and seamless document handling capabilities with a modern, responsive user interface.
 
 ### Key Highlights
 
@@ -29,7 +32,8 @@ The Njala Past Questions API is a production-ready backend system designed to st
 - 📊 **Analytics Dashboard**: Real-time statistics and usage tracking
 - 🔍 **Audit Logging**: Complete accountability with detailed activity logs
 - 📧 **Email Integration**: OTP verification and password reset workflows
-- 🚀 **Modern Architecture**: Built on ASP.NET Core 8 with Entity Framework Core
+- 🎨 **Modern UI**: Responsive Next.js frontend with Tailwind CSS and shadcn/ui
+- 🚀 **Modern Architecture**: Built on ASP.NET Core 8 backend with Next.js 16 frontend
 
 ---
 
@@ -48,7 +52,7 @@ The Njala Past Questions API is a production-ready backend system designed to st
 
 | Role | Permissions |
 |------|------------|
-| **Super Admin** | Full system access, manage admins, view global statistics |
+| **Super Admin** | Full system access, manage admins, view global statistics, audit logs |
 | **Admin** | Manage documents, student accounts, and view analytics |
 | **Student** | Access and download documents, view personal statistics |
 
@@ -60,20 +64,29 @@ The Njala Past Questions API is a production-ready backend system designed to st
 - 🏷️ **Rich Metadata** - Title, year, course code, department, and custom tags
 - 🔍 **Search & Filter** - Advanced querying capabilities
 - 📊 **Usage Analytics** - Download counts and popularity metrics
+- 🤖 **AI Summaries** - Automatic document summarization
 
 ### Dashboard Features
 
 #### Student Dashboard
 - 📈 Personal download statistics
 - 🕒 Recently accessed documents
-- 🔎 Search with pagination
+- 🔎 Search with pagination and filters
 - 📚 Course-specific materials
+- 📊 Visual analytics with charts
 
 #### Admin Dashboard
 - 👥 User management (Students & Admins)
 - 📊 System-wide statistics
-- 📋 Audit log access
+- 📋 Document management interface
 - 📈 Usage analytics
+- 🔄 AI summary regeneration
+
+#### Super Admin Dashboard
+- 🌐 Global system statistics
+- 📝 Comprehensive audit logs
+- 👤 User and admin management
+- 🔐 System-wide access control
 
 ### Security & Compliance
 
@@ -82,10 +95,13 @@ The Njala Past Questions API is a production-ready backend system designed to st
 - 📝 **Comprehensive Auditing** - All sensitive actions logged
 - 🚫 **GitHub Push Protection** - Prevents accidental secret leaks
 - ✅ **CORS Configuration** - Controlled cross-origin access
+- 🔐 **Protected Routes** - Frontend and backend route protection
 
 ---
 
 ## 🛠️ Technology Stack
+
+### Backend
 
 | Category | Technology |
 |----------|-----------|
@@ -99,46 +115,89 @@ The Njala Past Questions API is a production-ready backend system designed to st
 | **API Documentation** | Swagger/OpenAPI (Swashbuckle) |
 | **Messaging** | Twilio, Vonage (SMS capabilities) |
 
+### Frontend
+
+| Category | Technology |
+|----------|-----------|
+| **Framework** | Next.js 16.0 (React 19.2) |
+| **Language** | TypeScript 5 |
+| **Styling** | Tailwind CSS 4.1 |
+| **UI Components** | shadcn/ui (Radix UI) |
+| **Forms** | React Hook Form + Zod validation |
+| **State Management** | React Context API |
+| **Icons** | Lucide React |
+| **Charts** | Recharts |
+| **Date Handling** | date-fns |
+| **Theming** | next-themes (Dark/Light mode) |
+
 ---
 
 ## 📂 Project Structure
 
 ```
-NjalaAPI/
-├── Controllers/           # API endpoints
-│   ├── AuthController.cs         # Authentication & authorization
-│   ├── DocumentController.cs     # Document management
-│   ├── StudentDashboardController.cs
-│   ├── AdminController.cs        # Admin operations
-│   ├── AuditController.cs        # Audit logs
-│   └── StatsController.cs        # Statistics
-├── Data/                  # Database context
-│   └── ApplicationDbContext.cs
-├── Models/                # Domain entities
-│   ├── ApplicationUser.cs
-│   ├── RefreshToken.cs
-│   ├── Document.cs
-│   ├── AuditLog.cs
-│   └── ...
-├── Services/              # Business logic
-│   ├── IEmailService.cs
-│   ├── EmailService.cs
-│   ├── IAuditService.cs
-│   ├── AuditService.cs
-│   └── ...
-├── DTOs/                  # Data transfer objects
-│   ├── AuthDtos.cs
-│   ├── DocumentDtos.cs
-│   ├── AuditLogDto.cs
-│   └── ...
-├── Migrations/            # EF Core migrations
-├── Extensions/            # Extension methods
-├── UploadedFiles/         # Document storage
-├── UploadedAvatars/       # User avatars
-├── wwwroot/               # Static files
-├── appsettings.json       # Configuration (no secrets)
-├── appsettings.sample.json # Configuration template
-└── Program.cs             # Application entry point
+Njala-pastquestionsAPI/
+├── backend/
+│   ├── Controllers/           # API endpoints
+│   │   ├── AuthController.cs         # Authentication & authorization
+│   │   ├── DocumentController.cs     # Document management
+│   │   ├── StudentDashboardController.cs
+│   │   ├── AdminController.cs        # Admin operations
+│   │   ├── AuditController.cs        # Audit logs
+│   │   └── StatsController.cs        # Statistics
+│   ├── Data/                  # Database context
+│   │   └── ApplicationDbContext.cs
+│   ├── Models/                # Domain entities
+│   │   ├── ApplicationUser.cs
+│   │   ├── RefreshToken.cs
+│   │   ├── Document.cs
+│   │   ├── AuditLog.cs
+│   │   └── ...
+│   ├── Services/              # Business logic
+│   │   ├── IEmailService.cs
+│   │   ├── EmailService.cs
+│   │   ├── IAuditService.cs
+│   │   ├── AuditService.cs
+│   │   └── ...
+│   ├── DTOs/                  # Data transfer objects
+│   ├── Migrations/            # EF Core migrations
+│   ├── Extensions/            # Extension methods
+│   ├── UploadedFiles/         # Document storage
+│   ├── UploadedAvatars/       # User avatars
+│   ├── wwwroot/               # Static files
+│   ├── appsettings.json       # Configuration (no secrets)
+│   └── Program.cs             # Application entry point
+│
+└── frontend/
+    ├── app/                   # Next.js App Router
+    │   ├── admin/            # Admin dashboard pages
+    │   ├── dashboard/        # Student dashboard pages
+    │   ├── superadmin/       # Super admin pages
+    │   ├── login/            # Login page
+    │   ├── register/         # Registration page
+    │   ├── verify-otp/       # OTP verification
+    │   ├── layout.tsx        # Root layout
+    │   └── page.tsx          # Landing page
+    ├── components/            # Reusable UI components
+    │   ├── ui/               # shadcn/ui components
+    │   └── ...               # Custom components
+    ├── contexts/              # React contexts
+    │   └── AuthContext.tsx   # Authentication context
+    ├── lib/                   # Utilities and API
+    │   ├── api/              # API service layer
+    │   │   ├── auth.ts
+    │   │   ├── documents.ts
+    │   │   ├── students.ts
+    │   │   ├── admins.ts
+    │   │   ├── dashboard.ts
+    │   │   ├── audit.ts
+    │   │   └── config.ts
+    │   └── utils.ts          # Utility functions
+    ├── styles/                # Global styles
+    ├── public/                # Static assets
+    ├── .env.local            # Environment variables (gitignored)
+    ├── next.config.mjs       # Next.js configuration
+    ├── tailwind.config.ts    # Tailwind configuration
+    └── package.json          # Dependencies
 ```
 
 ---
@@ -148,11 +207,12 @@ NjalaAPI/
 ### Prerequisites
 
 - [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [Node.js 18+](https://nodejs.org/) and npm/pnpm
 - [SQL Server](https://www.microsoft.com/sql-server) (LocalDB, Express, or Full)
 - [Git](https://git-scm.com/)
 - A code editor ([Visual Studio](https://visualstudio.microsoft.com/), [VS Code](https://code.visualstudio.com/), or [Rider](https://www.jetbrains.com/rider/))
 
-### Installation
+### Backend Setup
 
 #### 1️⃣ Clone the Repository
 
@@ -224,7 +284,7 @@ dotnet user-secrets set "Jwt:Key" "your-secure-secret-key-at-least-32-characters
 
 > **Note**: For Gmail SMTP, you need to generate an [App Password](https://support.google.com/accounts/answer/185833).
 
-#### 6️⃣ Run the Application
+#### 6️⃣ Run the Backend
 
 ```bash
 dotnet run
@@ -234,6 +294,54 @@ The API will be available at:
 - **HTTPS**: `https://localhost:5001`
 - **HTTP**: `http://localhost:5000`
 - **Swagger UI**: `https://localhost:5001/swagger`
+
+---
+
+### Frontend Setup
+
+#### 1️⃣ Navigate to Frontend Directory
+
+```bash
+cd frontend
+```
+
+#### 2️⃣ Install Dependencies
+
+```bash
+npm install
+# or
+pnpm install
+```
+
+#### 3️⃣ Configure Environment Variables
+
+Create a `.env.local` file in the `frontend` directory:
+
+```env
+# API Configuration
+NEXT_PUBLIC_API_URL=https://localhost:5001/api
+
+# Google OAuth Configuration (optional)
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here
+```
+
+#### 4️⃣ Run the Frontend
+
+```bash
+npm run dev
+# or
+pnpm dev
+```
+
+The frontend will be available at:
+- **Development**: `http://localhost:3000`
+
+#### 5️⃣ Build for Production
+
+```bash
+npm run build
+npm start
+```
 
 ---
 
@@ -354,15 +462,81 @@ Content-Type: multipart/form-data
 
 ---
 
+## 🎨 Frontend Features
+
+### User Interface
+
+- 🎨 **Modern Design**: Clean, professional UI with shadcn/ui components
+- 🌓 **Dark/Light Mode**: Theme switching with next-themes
+- 📱 **Responsive**: Mobile-first design that works on all devices
+- ♿ **Accessible**: WCAG compliant with keyboard navigation
+- 🎭 **Animations**: Smooth transitions and micro-interactions
+
+### Pages & Routes
+
+#### Public Routes
+- `/` - Landing page
+- `/login` - Login page with email/password and Google OAuth
+- `/register` - User registration
+- `/verify-otp` - OTP verification
+
+#### Student Routes (`/dashboard/*`)
+- `/dashboard` - Student dashboard with statistics
+- `/dashboard/questions` - Browse and download documents
+- `/dashboard/profile` - User profile management
+
+#### Admin Routes (`/admin/*`)
+- `/admin` - Admin dashboard with system stats
+- `/admin/documents` - Document management
+- `/admin/students` - Student management
+
+#### Super Admin Routes (`/superadmin/*`)
+- `/superadmin` - Super admin dashboard
+- `/superadmin/users` - User management
+- `/superadmin/audit` - Audit logs
+
+### API Integration
+
+All API calls are organized in `lib/api/`:
+
+```typescript
+// Example: Login
+import { login } from '@/lib/api/auth';
+
+const response = await login({
+  email: 'student@njala.edu',
+  password: 'SecurePass123!'
+});
+```
+
+### Authentication Context
+
+The `AuthContext` provides:
+- User authentication state
+- Login/logout functions
+- Token management (stored in localStorage)
+- Role-based access control
+- Automatic token refresh
+
+```typescript
+import { useAuth } from '@/contexts/AuthContext';
+
+const { user, login, logout, isAuthenticated } = useAuth();
+```
+
+---
+
 ## 🧪 Testing
 
-### Using Swagger UI
+### Backend Testing
+
+#### Using Swagger UI
 
 1. Navigate to `https://localhost:5001/swagger`
 2. Click "Authorize" and enter your JWT token
 3. Test endpoints interactively
 
-### Using Postman
+#### Using Postman
 
 1. Import the API collection (create from Swagger JSON)
 2. Set up environment variables:
@@ -370,7 +544,7 @@ Content-Type: multipart/form-data
    - `token`: Your JWT token
 3. Test endpoints with pre-configured requests
 
-### Using cURL
+#### Using cURL
 
 ```bash
 # Login
@@ -383,6 +557,16 @@ curl -X GET https://localhost:5001/api/document \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
+### Frontend Testing
+
+1. Start the development server: `npm run dev`
+2. Navigate to `http://localhost:3000`
+3. Test user flows:
+   - Registration → OTP Verification → Login
+   - Document browsing and download
+   - Admin document management
+   - Super admin user management
+
 ---
 
 ## 🔐 Security Best Practices
@@ -390,7 +574,8 @@ curl -X GET https://localhost:5001/api/document \
 ### Secret Management
 
 - ✅ **Never commit secrets** to version control
-- ✅ Use **User Secrets** for local development
+- ✅ Use **User Secrets** for local development (backend)
+- ✅ Use **.env.local** for local development (frontend)
 - ✅ Use **Environment Variables** or **Azure Key Vault** in production
 - ✅ Enable **GitHub Secret Scanning** and **Push Protection**
 
@@ -414,12 +599,22 @@ curl -X GET https://localhost:5001/api/document \
 - ✅ **XSS protection** with proper input validation
 - ✅ **File upload validation** (type, size, content)
 - ✅ **Audit logging** for accountability
+- ✅ **Protected routes** on frontend and backend
+
+### Frontend Security
+
+- ✅ **Token storage** in localStorage (consider httpOnly cookies for production)
+- ✅ **Automatic logout** on token expiration
+- ✅ **Route protection** based on user roles
+- ✅ **Input sanitization** with Zod validation
 
 ---
 
 ## 🌍 Deployment
 
-### Azure App Service
+### Backend Deployment
+
+#### Azure App Service
 
 1. **Create Azure resources:**
    ```bash
@@ -440,41 +635,95 @@ curl -X GET https://localhost:5001/api/document \
    az webapp deployment source config-zip --resource-group NjalaAPI-RG --name njala-api --src publish.zip
    ```
 
-### Docker
+#### Docker
 
-1. **Create Dockerfile:**
-   ```dockerfile
-   FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-   WORKDIR /app
-   EXPOSE 80
-   EXPOSE 443
+```dockerfile
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+WORKDIR /app
+EXPOSE 80
+EXPOSE 443
 
-   FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-   WORKDIR /src
-   COPY ["NjalaAPI.csproj", "./"]
-   RUN dotnet restore "NjalaAPI.csproj"
-   COPY . .
-   RUN dotnet build "NjalaAPI.csproj" -c Release -o /app/build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY ["NjalaAPI.csproj", "./"]
+RUN dotnet restore "NjalaAPI.csproj"
+COPY . .
+RUN dotnet build "NjalaAPI.csproj" -c Release -o /app/build
 
-   FROM build AS publish
-   RUN dotnet publish "NjalaAPI.csproj" -c Release -o /app/publish
+FROM build AS publish
+RUN dotnet publish "NjalaAPI.csproj" -c Release -o /app/publish
 
-   FROM base AS final
-   WORKDIR /app
-   COPY --from=publish /app/publish .
-   ENTRYPOINT ["dotnet", "NjalaAPI.dll"]
-   ```
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "NjalaAPI.dll"]
+```
 
-2. **Build and run:**
+```bash
+docker build -t njala-api .
+docker run -d -p 8080:80 --name njala-api-container njala-api
+```
+
+### Frontend Deployment
+
+#### Vercel (Recommended)
+
+1. **Install Vercel CLI:**
    ```bash
-   docker build -t njala-api .
-   docker run -d -p 8080:80 --name njala-api-container njala-api
+   npm i -g vercel
    ```
+
+2. **Deploy:**
+   ```bash
+   cd frontend
+   vercel
+   ```
+
+3. **Set environment variables in Vercel dashboard:**
+   - `NEXT_PUBLIC_API_URL`: Your production API URL
+   - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`: Google OAuth client ID
+
+#### Docker
+
+```dockerfile
+FROM node:18-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build
+
+FROM node:18-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV production
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+EXPOSE 3000
+ENV PORT 3000
+CMD ["node", "server.js"]
+```
+
+```bash
+docker build -t njala-frontend .
+docker run -d -p 3000:3000 --name njala-frontend-container njala-frontend
+```
+
+#### Static Export (Optional)
+
+```bash
+npm run build
+# Deploy the 'out' directory to any static hosting service
+```
 
 ### Environment Variables (Production)
 
-Set these in your hosting environment:
-
+**Backend:**
 ```bash
 ConnectionStrings__DefaultConnection="Your-Production-Connection-String"
 Jwt__Key="your-production-jwt-secret-key"
@@ -483,6 +732,12 @@ Jwt__Audience="NjalaStudents"
 Authentication__Google__ClientId="your-google-client-id"
 Authentication__Google__ClientSecret="your-google-client-secret"
 EmailSettings__Password="your-smtp-password"
+```
+
+**Frontend:**
+```bash
+NEXT_PUBLIC_API_URL="https://your-api-domain.com/api"
+NEXT_PUBLIC_GOOGLE_CLIENT_ID="your-google-client-id"
 ```
 
 ---
@@ -527,10 +782,12 @@ Contributions are welcome! Please follow these guidelines:
 
 ### Development Guidelines
 
-- Follow C# coding conventions
+- Follow C# coding conventions for backend
+- Follow TypeScript/React best practices for frontend
 - Write unit tests for new features
 - Update documentation as needed
 - Ensure all tests pass before submitting PR
+- Use meaningful commit messages
 
 ---
 
@@ -554,6 +811,8 @@ BSc. Computer Science, Njala University
 
 - Njala University for project inspiration
 - ASP.NET Core team for excellent documentation
+- Next.js and Vercel for amazing frontend tools
+- shadcn/ui for beautiful UI components
 - Open-source community for valuable libraries
 
 ---
@@ -565,6 +824,19 @@ For issues, questions, or suggestions:
 - 🐛 **Bug Reports**: [Open an issue](https://github.com/be860/Njala-pastquestionsAPI/issues)
 - 💡 **Feature Requests**: [Start a discussion](https://github.com/be860/Njala-pastquestionsAPI/discussions)
 - 📧 **Email**: benjaminturay592@gmail.com
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] Mobile app (React Native)
+- [ ] Advanced search with Elasticsearch
+- [ ] Real-time notifications with SignalR
+- [ ] Document versioning
+- [ ] Collaborative annotations
+- [ ] Integration with university LMS
+- [ ] Multi-language support
+- [ ] Advanced analytics dashboard
 
 ---
 
