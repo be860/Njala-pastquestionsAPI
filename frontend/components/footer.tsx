@@ -10,9 +10,7 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-background rounded-lg flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-foreground" />
-              </div>
+              <img src="/njala-logo.png" alt="Njala Logo" className="w-8 h-8" />
               <span className="font-bold text-lg">Njala PQ</span>
             </div>
             <p className="text-background/70 text-sm">
@@ -102,7 +100,7 @@ export default function Footer() {
 
         <div className="border-t border-background/10 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-background/70">© 2025 Njala Past Questions. All rights reserved.</p>
-          <p className="text-sm text-background/70 mt-4 md:mt-0">Built with ❤️ by Njala Developers</p>
+          <p className="text-sm text-background/70 mt-4 md:mt-0">Built with ❤️ by Francis Benjamin Turay</p>
         </div>
       </div>
     </footer>

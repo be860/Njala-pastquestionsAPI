@@ -20,23 +20,23 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Njala Past Questions - Study Smarter",
   description: "Access past exam questions, AI-powered tutoring, and study resources for Njala University students",
-  generator: "v0.app",
+  generator: "Next.js",
   icons: {
     icon: [
       {
-        url: "/icon-light-32x32.png",
+        url: "/njala-logo.png",
         media: "(prefers-color-scheme: light)",
       },
       {
-        url: "/icon-dark-32x32.png",
+        url: "/njala-logo.png",
         media: "(prefers-color-scheme: dark)",
       },
       {
-        url: "/icon.svg",
+        url: "/njala-logo.png",
         type: "image/svg+xml",
       },
     ],
-    apple: "/apple-icon.png",
+    apple: "/njala-logo.png",
   },
 }
 

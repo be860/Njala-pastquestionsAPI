@@ -13,9 +13,7 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group cursor-pointer">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center transition-smooth">
-              <BookOpen className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <img src="/njala-logo.png" alt="Njala Logo" className="w-8 h-8" />
             <span className="font-poppins font-bold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Njala PQ
             </span>

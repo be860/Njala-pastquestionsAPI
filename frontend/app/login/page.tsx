@@ -181,9 +181,9 @@ export default function LoginPage() {
             </div>
 
             <div className="flex justify-end">
-              <a href="#" className="text-sm text-primary hover:text-primary/80 transition-smooth font-medium">
+              <Link href="/forgot-password" className="text-sm text-primary hover:text-primary/80 transition-smooth font-medium">
                 Forgot password?
-              </a>
+              </Link>
             </div>
 
             <Button
@@ -201,34 +201,34 @@ export default function LoginPage() {
             <div className="flex-1 h-px bg-border" />
           </div>
 
-          {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && 
-           process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID !== "your_google_client_id_here" && (
-            <>
-              <Script
-                src="https://accounts.google.com/gsi/client"
-                strategy="lazyOnload"
-                onLoad={() => {
-                  if (typeof window !== "undefined" && window.google?.accounts) {
-                    window.google.accounts.id.initialize({
-                      client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",
-                      callback: handleGoogleCallback,
+          {/* Google Sign-In Logic - Always Render for Visibility */}
+          <>
+            <Script
+              src="https://accounts.google.com/gsi/client"
+              strategy="lazyOnload"
+              onLoad={() => {
+                if (typeof window !== "undefined" && window.google?.accounts) {
+                  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "your_google_client_id_here";
+
+                  window.google.accounts.id.initialize({
+                    client_id: clientId,
+                    callback: handleGoogleCallback,
+                  })
+
+                  const buttonElement = document.getElementById("google-signin-button")
+                  if (buttonElement) {
+                    window.google.accounts.id.renderButton(buttonElement, {
+                      theme: "outline",
+                      size: "large",
+                      width: "100%",
                     })
-
-                    const buttonElement = document.getElementById("google-signin-button")
-                    if (buttonElement) {
-                      window.google.accounts.id.renderButton(buttonElement, {
-                        theme: "outline",
-                        size: "large",
-                        width: "100%",
-                      })
-                    }
                   }
-                }}
-              />
+                }
+              }}
+            />
 
-              <div id="google-signin-button" className="w-full mb-3"></div>
-            </>
-          )}
+            <div id="google-signin-button" className="w-full mb-3"></div>
+          </>
 
           {googleLoading && (
             <div className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 text-gray-700 h-11 font-medium rounded-lg mb-3">

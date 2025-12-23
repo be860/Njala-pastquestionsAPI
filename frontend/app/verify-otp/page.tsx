@@ -9,13 +9,13 @@ import { Button } from "@/components/ui/button"
 import { authApi } from "@/lib/api/auth"
 import { useToast } from "@/hooks/use-toast"
 
-export default function VerifyOtpPage() {
+function VerifyOtpForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
   const email = searchParams.get("email") || ""
   const role = searchParams.get("role") || "Student"
-  
+
   const [otp, setOtp] = useState(["", "", "", "", "", ""])
   const [isLoading, setIsLoading] = useState(false)
   const [isResending, setIsResending] = useState(false)
@@ -67,7 +67,7 @@ export default function VerifyOtpPage() {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault()
     const otpCode = otp.join("")
-    
+
     if (otpCode.length !== 6) {
       toast({
         title: "Invalid OTP",
@@ -84,14 +84,14 @@ export default function VerifyOtpPage() {
         code: otpCode,
         type: "email",
       })
-      
+
       toast({
         title: "Email Verified",
-        description: role === "Admin" 
+        description: role === "Admin"
           ? "Your email has been verified. Your admin account is pending SuperAdmin approval. You will be notified once approved."
           : "Your email has been verified successfully. You can now login.",
       })
-      
+
       setTimeout(() => {
         router.push("/login")
       }, 2000)
@@ -221,6 +221,16 @@ export default function VerifyOtpPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+import { Suspense } from "react"
+
+export default function VerifyOtpPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <VerifyOtpForm />
+    </Suspense>
   )
 }
 

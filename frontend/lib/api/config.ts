@@ -1,5 +1,5 @@
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:5001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 export const API_CONFIG = {
   baseURL: API_BASE_URL,
@@ -46,9 +46,9 @@ export const apiRequest = async <T>(
   const token = getAuthToken();
   const url = `${API_CONFIG.baseURL}${endpoint}`;
 
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
 
   if (token) {
@@ -87,7 +87,7 @@ export const apiRequestFormData = async <T>(
   const token = getAuthToken();
   const url = `${API_CONFIG.baseURL}${endpoint}`;
 
-  const headers: HeadersInit = {};
+  const headers: Record<string, string> = {};
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;

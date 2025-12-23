@@ -85,17 +85,29 @@ namespace NjalaAPI.Controllers
         {
             var user = await _userManager.FindByEmailAsync(model.Email);
             if (user == null)
+            {
+                Console.WriteLine($"[Login Failed] User not found: {model.Email}");
                 return Unauthorized("Invalid email or password.");
+            }
 
             if (!user.EmailConfirmed)
+            {
+                Console.WriteLine($"[Login Failed] Email not confirmed: {model.Email}");
                 return Unauthorized("Please verify your email before logging in.");
+            }
 
             // Check if Admin is approved
             if (user.Role == "Admin" && !user.IsApproved)
+            {
+                Console.WriteLine($"[Login Failed] Admin not approved: {model.Email}");
                 return Unauthorized("Your admin account is pending approval. Please wait for SuperAdmin approval before logging in.");
+            }
 
             if (!await _userManager.CheckPasswordAsync(user, model.Password))
+            {
+                Console.WriteLine($"[Login Failed] Password mismatch for: {model.Email}");
                 return Unauthorized("Invalid email or password.");
+            }
 
             if (user.TwoFactorEnabled)
             {
@@ -340,7 +352,13 @@ namespace NjalaAPI.Controllers
 
             var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
             var encodedToken = WebUtility.UrlEncode(resetToken);
-            var resetLink = $"{Request.Scheme}://{Request.Host}/reset-password.html?email={dto.Email}&token={encodedToken}";
+            // Reset link pointing to Frontend (assumes running on port 3000)
+            // TODO: Move base URL to appsettings
+            var frontendUrl = _context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory" 
+                ? "http://localhost:3000" 
+                : "http://localhost:3000"; 
+            
+            var resetLink = $"{frontendUrl}/reset-password?email={dto.Email}&token={encodedToken}";
 
             // Send password reset email asynchronously (non-blocking)
             _ = Task.Run(async () =>
@@ -375,13 +393,21 @@ namespace NjalaAPI.Controllers
             var user = await _userManager.FindByEmailAsync(dto.Email);
             if (user == null) return NotFound("No user found with that email.");
 
-            var decodedToken = WebUtility.UrlDecode(dto.Token);
-            var result = await _userManager.ResetPasswordAsync(user, decodedToken, dto.NewPassword);
+            // Token is received via JSON, so it's already a string. No need to UrlDecode again as it might corrupt base64 characters like '+'
+            var result = await _userManager.ResetPasswordAsync(user, dto.Token, dto.NewPassword);
             if (!result.Succeeded)
             {
                 var errors = string.Join("; ", result.Errors.Select(e => e.Description));
                 return BadRequest(errors);
             }
+
+            // Trust the email is valid if they had the token
+            if (!user.EmailConfirmed)
+            {
+                user.EmailConfirmed = true;
+                await _userManager.UpdateAsync(user);
+            }
+
             await _auditService.LogAsync("ResetPassword", $"Password reset completed for {user.Email}");
             return Ok(new { message = "Password has been reset successfully." });
         }

@@ -4,20 +4,20 @@ import { Star } from "lucide-react"
 
 const testimonials = [
   {
-    name: "Sarah Johnson",
-    course: "Mathematics (Final Year)",
+    name: "Cheseed Sharon Bangura",
+    course: "Computer Science (Final Year)",
     text: "Njala Past Questions helped me prepare confidently for my exams. The AI tutor feature was especially helpful!",
     avatar: "/portrait-of-african-student-woman.jpg",
   },
   {
-    name: "Michael Ahmed",
-    course: "Physics (Third Year)",
+    name: "Francis Benjamin Turay",
+    course: "Computer Science (Final Year)",
     text: "Having access to organized past questions saved me so much time. I improved my grades by 15% in just one semester.",
     avatar: "/portrait-of-african-student-man.jpg",
   },
   {
-    name: "Amara Conteh",
-    course: "Biology (Final Year)",
+    name: "Isha Bah",
+    course: "Biology (Second Year)",
     text: "The platform is so easy to use, and the AI summaries help me understand concepts faster. Highly recommended!",
     avatar: "/portrait-of-african-student-woman-smiling.jpg",
   },
