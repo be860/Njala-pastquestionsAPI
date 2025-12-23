@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auth - Login & Register</title>
+  <!-- Roboto Font -->
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #007BFF;
+      --bg-color: #FFFFFF;
+      --text-color: #333333;
+      --input-bg: #F9F9F9;
+      --input-border: #CCCCCC;
+      --border-radius: 0.5rem;
+      --transition: 0.3s;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Roboto', sans-serif;
+    }
+    body {
+      background-color: var(--bg-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: var(--text-color);
+    }
+    .container {
+      width: 100%;
+      max-width: 400px;
+      background: #fff;
+      padding: 2rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      border-radius: var(--border-radius);
+    }
+    .toggle-buttons {
+      display: flex;
+      margin-bottom: 1.5rem;
+    }
+    .toggle-buttons button {
+      flex: 1;
+      padding: 0.75rem;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .toggle-buttons button.active {
+      border-bottom-color: var(--primary-color);
+      font-weight: 500;
+    }
+    form {
+      display: none;
+      flex-direction: column;
+    }
+    form.active {
+      display: flex;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.25rem;
+      font-size: 0.9rem;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid var(--input-border);
+      border-radius: var(--border-radius);
+      background: var(--input-bg);
+      transition: var(--transition);
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 2px rgba(0,123,255,0.2);
+    }
+    .btn {
+      width: 100%;
+      padding: 0.75rem;
+      border: none;
+      border-radius: var(--border-radius);
+      background: var(--primary-color);
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .btn:hover {
+      background: #0056b3;
+    }
+    .google-btn-container {
+      text-align: center;
+      margin: 1rem 0;
+    }
+    .message {
+      margin-top: 1rem;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+    .message.error {
+      color: #dc3545;
+    }
+    .message.success {
+      color: #28a745;
+    }
+  </style>
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <div class="container">
+    <div class="toggle-buttons">
+      <button id="loginToggle" class="active">Login</button>
+      <button id="registerToggle">Register</button>
+    </div>
+
+    <!-- Login Form -->
+    <form id="loginForm" class="form active">
+      <div class="form-group">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" required>
+      </div>
+      <div class="form-group">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" required>
+      </div>
+      <div class="google-btn-container">
+        <div id="g_id_onload"
+             data-client_id="316079948406-hfjhnjiffuhd68i4rvnm7ribegc7e4g4.apps.googleusercontent.com"
+             data-context="signin"
+             data-ux_mode="popup"
+             data-callback="handleGoogleResponse">
+        </div>
+        <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline" data-text="signin_with" data-size="large"></div>
+      </div>
+      <button type="submit" class="btn">Login</button>
+    </form>
+
+    <!-- Register Form -->
+    <form id="registerForm" class="form">
+      <div class="form-group">
+        <label for="registerName">Full Name</label>
+        <input type="text" id="registerName" required>
+      </div>
+      <div class="form-group">
+        <label for="registerEmail">Email</label>
+        <input type="email" id="registerEmail" required>
+      </div>
+      <div class="form-group">
+        <label for="registerPassword">Password</label>
+        <input type="password" id="registerPassword" required>
+      </div>
+      <button type="submit" class="btn">Register</button>
+    </form>
+
+    <div id="message" class="message"></div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:5001';
+
+    // Toggle Forms
+    const loginToggle = document.getElementById('loginToggle');
+    const registerToggle = document.getElementById('registerToggle');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const messageBox = document.getElementById('message');
+
+    loginToggle.addEventListener('click', () => {
+      loginToggle.classList.add('active');
+      registerToggle.classList.remove('active');
+      loginForm.classList.add('active');
+      registerForm.classList.remove('active');
+      messageBox.textContent = '';
+    });
+
+    registerToggle.addEventListener('click', () => {
+      registerToggle.classList.add('active');
+      loginToggle.classList.remove('active');
+      registerForm.classList.add('active');
+      loginForm.classList.remove('active');
+      messageBox.textContent = '';
+    });
+
+    // Handle Login
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      messageBox.textContent = '';
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          window.location.href = 'StudentDashboard.html';
+        } else {
+          messageBox.textContent = data.message || data;
+          messageBox.className = 'message error';
+        }
+      } catch (err) {
+        messageBox.textContent = 'Network error';
+        messageBox.className = 'message error';
+      }
+    });
+
+    // Handle Register
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      messageBox.textContent = '';
+      const fullName = document.getElementById('registerName').value;
+      const email = document.getElementById('registerEmail').value;
+      const password = document.getElementById('registerPassword').value;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/register`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ fullName, email, password })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          window.location.href = `VerifyEmail.html?email=${encodeURIComponent(email)}`;
+        } else {
+          messageBox.textContent = data.message || data;
+          messageBox.className = 'message error';
+        }
+      } catch (err) {
+        messageBox.textContent = 'Network error';
+        messageBox.className = 'message error';
+      }
+    });
+
+    // Google callback
+    function handleGoogleResponse(response) {
+      messageBox.textContent = '';
+      fetch(`${API_BASE}/api/auth/google-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: response.credential })
+      })
+      .then(res => res.json().then(data => ({ status: res.status, body: data })))
+      .then(({ status, body }) => {
+        if (status === 200) {
+          localStorage.setItem('token', body.token);
+          localStorage.setItem('user', JSON.stringify(body.user));
+          window.location.href = 'StudentDashboard.html';
+        } else {
+          messageBox.textContent = body.message || 'Google login failed';
+          messageBox.className = 'message error';
+        }
+      })
+      .catch(() => {
+        messageBox.textContent = 'Network error';
+        messageBox.className = 'message error';
+      });
+    }
+  </script>
+</body>
+</html>
