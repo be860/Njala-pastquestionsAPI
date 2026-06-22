@@ -208,7 +208,7 @@ export default function LoginPage() {
               strategy="lazyOnload"
               onLoad={() => {
                 if (typeof window !== "undefined" && window.google?.accounts) {
-                  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "your_google_client_id_here";
+                  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "316079948406-ps71bonl3in4jt7esucotimlcb1l7t7s.apps.googleusercontent.com";
 
                   window.google.accounts.id.initialize({
                     client_id: clientId,
