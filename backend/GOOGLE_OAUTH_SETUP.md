@@ -131,4 +131,4 @@ Authorized redirect URIs:
    - You are redirected to the appropriate dashboard
    - Your profile photo appears (if you have one)
    - Your name and email are correctly displayed
-
+ 

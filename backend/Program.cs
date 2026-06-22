@@ -130,53 +130,59 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Seed roles and SuperAdmin
-using (var scope = app.Services.CreateScope())
+// Seed roles and SuperAdmin - wrapped so DB failure doesn't crash the app
+try
 {
-    var services = scope.ServiceProvider;
-    var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
-    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-
-    foreach (var roleName in new[] { "SuperAdmin", "Admin", "Student" })
+    using (var scope = app.Services.CreateScope())
     {
-        if (!await roleManager.RoleExistsAsync(roleName))
+        var services = scope.ServiceProvider;
+        var db = services.GetRequiredService<AppDbContext>();
+        db.Database.Migrate();
+
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+
+        foreach (var roleName in new[] { "SuperAdmin", "Admin", "Student" })
         {
-            await roleManager.CreateAsync(new IdentityRole<Guid>(roleName));
+            if (!await roleManager.RoleExistsAsync(roleName))
+                await roleManager.CreateAsync(new IdentityRole<Guid>(roleName));
+        }
+
+        string superAdminEmail = "superadmin@njala.edu";
+        var superAdmin = await userManager.FindByEmailAsync(superAdminEmail);
+
+        if (superAdmin == null)
+        {
+            var admin = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = superAdminEmail,
+                Email = superAdminEmail,
+                FullName = "Super Admin",
+                Role = "SuperAdmin",
+                EmailConfirmed = true
+            };
+            var result = await userManager.CreateAsync(admin, "SuperSecurePassword123!");
+            if (result.Succeeded)
+                await userManager.AddToRoleAsync(admin, "SuperAdmin");
         }
     }
-
-    string superAdminEmail = "superadmin@njala.edu";
-    var superAdmin = await userManager.FindByEmailAsync(superAdminEmail);
-
-    if (superAdmin == null)
-    {
-        var admin = new ApplicationUser
-        {
-            Id = Guid.NewGuid(),
-            UserName = superAdminEmail,
-            Email = superAdminEmail,
-            FullName = "Super Admin",
-            Role = "SuperAdmin",
-            EmailConfirmed = true
-        };
-
-        var result = await userManager.CreateAsync(admin, "SuperSecurePassword123!");
-        if (result.Succeeded)
-        {
-            await userManager.AddToRoleAsync(admin, "SuperAdmin");
-        }
-    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[STARTUP ERROR] DB seeding failed: {ex.Message}");
+    Console.WriteLine(ex.StackTrace);
 }
 
 // Middleware pipeline
 app.UseSwagger();
 app.UseSwaggerUI();
+app.UseDefaultFiles();
 app.UseStaticFiles();
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseDefaultFiles();
 
 // Test endpoints (remove in production)
 app.MapGet("/test-secret", (IConfiguration config) =>

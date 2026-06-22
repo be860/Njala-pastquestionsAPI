@@ -63,7 +63,7 @@ export const documentsApi = {
 
   download: async (id: number): Promise<Blob> => {
     const token = localStorage.getItem('token');
-    const url = `${process.env.NEXT_PUBLIC_API_URL || 'https://localhost:5001/api'}/document/download/${id}`;
+    const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://njalapastquestion.runasp.net'}/document/download/${id}`;
     
     const response = await fetch(url, {
       headers: {

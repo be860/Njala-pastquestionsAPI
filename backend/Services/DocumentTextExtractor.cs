@@ -26,10 +26,18 @@ namespace NjalaAPI.Services
         {
             StringBuilder text = new StringBuilder();
 
-            using (var document = UglyToad.PdfPig.PdfDocument.Open(pdfStream))
+            try
             {
-                foreach (var page in document.GetPages())
-                    text.AppendLine(page.Text);
+                using (var document = UglyToad.PdfPig.PdfDocument.Open(pdfStream, new ParsingOptions { UseLenientParsing = true }))
+                {
+                    foreach (var page in document.GetPages())
+                        text.AppendLine(page.Text);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Return a clear error message instead of crashing
+                return $"[Error parsing PDF: {ex.Message}. The file might be corrupted or encrypted.]";
             }
 
             return string.IsNullOrWhiteSpace(text.ToString())

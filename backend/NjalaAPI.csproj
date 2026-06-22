@@ -7,6 +7,7 @@
 	  <GenerateStaticWebAssets>false</GenerateStaticWebAssets>
 
     <UserSecretsId>8a20534a-8cc1-45c8-936d-e0af0920d6e1</UserSecretsId>
+	  <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,6 +34,12 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="8.0.0" />
     <PackageReference Include="Twilio" Version="7.11.1" />
     <PackageReference Include="Vonage" Version="7.19.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="web.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>
