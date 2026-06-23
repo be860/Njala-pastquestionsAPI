@@ -27,7 +27,13 @@ public class EmailService : IEmailService
             {
                 throw new InvalidOperationException("Email settings are not configured properly. Check appsettings.json");
             }
-
+            _logger.LogInformation(
+    "SMTP CONFIG -> Host:{Host}, Port:{Port}, User:{User}, PasswordExists:{PasswordExists}",
+    smtpHost,
+    smtpPort,
+    username,
+    !string.IsNullOrEmpty(password)
+);
             var message = new MailMessage(fromEmail, to, subject, body)
             {
                 IsBodyHtml = true
@@ -46,7 +52,10 @@ public class EmailService : IEmailService
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Failed to send email to {to}: {ex.Message}\n{ex.StackTrace}");
+            _logger.LogError("EMAIL ERROR sending to {Email}: {Error}",
+                to,
+                ex.ToString());
+
             throw;
         }
     }
