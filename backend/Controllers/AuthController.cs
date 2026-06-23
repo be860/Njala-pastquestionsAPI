@@ -10,6 +10,7 @@ using NjalaAPI.Services;
 using System.Net;
 using NjalaAPI.DTOs;
 using Microsoft.AspNetCore.Authorization;
+using System.Net.Sockets;
 
 namespace NjalaAPI.Controllers
 {
@@ -79,6 +80,22 @@ namespace NjalaAPI.Controllers
             }
         }
 
+        [HttpGet("smtp-test")]
+        public async Task<IActionResult> TestSmtp()
+        {
+            try
+            {
+                using var client = new TcpClient();
+
+                await client.ConnectAsync("smtp.gmail.com", 587);
+
+                return Ok("SMTP reachable");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.ToString());
+            }
+        }
         [AllowAnonymous]
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDTO model)
