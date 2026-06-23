@@ -4,32 +4,51 @@ using System.Net;
 public class EmailService : IEmailService
 {
     private readonly IConfiguration _config;
-    public EmailService(IConfiguration config)
+    private readonly ILogger<EmailService> _logger;
+    
+    public EmailService(IConfiguration config, ILogger<EmailService> logger)
     {
         _config = config;
+        _logger = logger;
     }
 
     public async Task SendAsync(string to, string subject, string body)
     {
-        var emailSettings = _config.GetSection("EmailSettings");
-        var fromEmail = emailSettings["From"];
-        var smtpHost = emailSettings["SmtpHost"];
-        var smtpPort = int.Parse(emailSettings["SmtpPort"]);
-        var username = emailSettings["Username"];
-        var password = emailSettings["Password"];
-
-        var message = new MailMessage(fromEmail, to, subject, body)
+        try
         {
-            IsBodyHtml = true
-        };
+            var emailSettings = _config.GetSection("EmailSettings");
+            var fromEmail = emailSettings["From"];
+            var smtpHost = emailSettings["SmtpHost"];
+            var smtpPort = int.Parse(emailSettings["SmtpPort"] ?? "587");
+            var username = emailSettings["Username"];
+            var password = emailSettings["Password"];
 
-        using var smtp = new SmtpClient(smtpHost, smtpPort)
+            if (string.IsNullOrEmpty(fromEmail) || string.IsNullOrEmpty(smtpHost) || string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            {
+                throw new InvalidOperationException("Email settings are not configured properly. Check appsettings.json");
+            }
+
+            var message = new MailMessage(fromEmail, to, subject, body)
+            {
+                IsBodyHtml = true
+            };
+
+            using var smtp = new SmtpClient(smtpHost, smtpPort)
+            {
+                EnableSsl = true,
+                Credentials = new NetworkCredential(username, password),
+                Timeout = 10000 // 10 second timeout
+            };
+
+            _logger.LogInformation($"Sending email to {to} via {smtpHost}:{smtpPort}");
+            await smtp.SendMailAsync(message);
+            _logger.LogInformation($"Email sent successfully to {to}");
+        }
+        catch (Exception ex)
         {
-            EnableSsl = true,
-            Credentials = new NetworkCredential(username, password)
-        };
-
-        await smtp.SendMailAsync(message);
+            _logger.LogError($"Failed to send email to {to}: {ex.Message}\n{ex.StackTrace}");
+            throw;
+        }
     }
 
     public async Task SendOtpEmailAsync(string to, string otpCode, string userName = "User")

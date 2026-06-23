@@ -257,13 +257,17 @@ namespace NjalaAPI.Controllers
         [HttpPost("request-otp")]
         public async Task<IActionResult> RequestOtp([FromBody] RequestOtpDto dto)
         {
+            // Validate email format
+            if (string.IsNullOrWhiteSpace(dto.Target) || !dto.Target.Contains("@"))
+                return BadRequest("Invalid email address");
+
             var recentOtp = await _context.OtpVerifications
                 .Where(o => o.Target == dto.Target && o.Type == dto.Type)
                 .OrderByDescending(o => o.ExpiresAt)
                 .FirstOrDefaultAsync();
 
             if (recentOtp != null && (recentOtp.ExpiresAt - DateTime.UtcNow).TotalMinutes > 5)
-                return BadRequest("You must wait before requesting a new OTP.");
+                return BadRequest("You must wait 5 minutes before requesting a new OTP. Please check your email.");
 
             var code = new Random().Next(100000, 999999).ToString();
             var otp = new OtpVerification
@@ -280,21 +284,31 @@ namespace NjalaAPI.Controllers
             var user = await _userManager.FindByEmailAsync(dto.Target);
             var userName = user?.FullName ?? "User";
 
-            // Send OTP email asynchronously (non-blocking)
-            _ = Task.Run(async () =>
+            // Send OTP email - SYNCHRONOUSLY to catch errors immediately
+            try
             {
-                try
-                {
-                    await _emailService.SendOtpEmailAsync(dto.Target, code, userName);
-                }
-                catch (Exception ex)
-                {
-                    // Log email failure but don't block OTP generation
-                    Console.WriteLine($"Failed to send OTP email: {ex.Message}");
-                }
-            });
-            
-            return Ok(new { message = "OTP sent" });
+                await _emailService.SendOtpEmailAsync(dto.Target, code, userName);
+                return Ok(new { message = "OTP sent successfully. Please check your email." });
+            }
+            catch (Exception ex)
+            {
+                // Log the error
+                Console.WriteLine($"[OTP ERROR] Failed to send OTP to {dto.Target}: {ex.Message}");
+                
+                // Delete the OTP if email fails
+                _context.OtpVerifications.Remove(otp);
+                await _context.SaveChangesAsync();
+                
+                // Return more specific error
+                if (ex.Message.Contains("gmail"))
+                    return StatusCode(500, new { message = "Email service configuration error. Please contact support." });
+                if (ex.Message.Contains("Authentication"))
+                    return StatusCode(500, new { message = "Email authentication failed. Please contact support." });
+                if (ex.Message.Contains("timeout"))
+                    return StatusCode(503, new { message = "Email service temporarily unavailable. Please try again." });
+                    
+                return StatusCode(500, new { message = $"Failed to send OTP: {ex.Message}" });
+            }
         }
 
         [HttpPost("verify-otp")]
