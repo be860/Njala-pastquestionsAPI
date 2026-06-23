@@ -1,4 +1,4 @@
-import { apiRequest, apiRequestFormData } from './config';
+import { apiRequest, apiRequestFormData, API_CONFIG, getAuthToken } from './config';
 
 export interface Document {
   id: number;
@@ -62,8 +62,8 @@ export const documentsApi = {
   },
 
   download: async (id: number): Promise<Blob> => {
-    const token = localStorage.getItem('token');
-    const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://njalapastquestion.runasp.net'}/document/download/${id}`;
+    const token = getAuthToken();
+    const url = `${API_CONFIG.baseURL}/document/download/${id}`;
     
     const response = await fetch(url, {
       headers: {

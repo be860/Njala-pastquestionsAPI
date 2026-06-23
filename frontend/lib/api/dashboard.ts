@@ -45,8 +45,8 @@ export const dashboardApi = {
   },
 
   downloadDocument: async (id: number): Promise<Blob> => {
-    const token = localStorage.getItem('token');
-    const url = `${process.env.NEXT_PUBLIC_API_URL || 'https://njala-pastquestionsapi.onrender.com/api'}/student-dashboard/download/${id}`;
+    const token = getAuthToken();
+    const url = `${API_CONFIG.baseURL}/student-dashboard/download/${id}`;
 
     const response = await fetch(url, {
       headers: {
