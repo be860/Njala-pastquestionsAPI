@@ -125,7 +125,13 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+        policy.WithOrigins(
+            "https://njala-pastquestions-api.vercel.app",
+            "http://localhost:3000"
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials());
 });
 
 var app = builder.Build();
@@ -174,6 +180,12 @@ catch (Exception ex)
     Console.WriteLine(ex.StackTrace);
 }
 
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 // Middleware pipeline
 app.UseSwagger();
 app.UseSwaggerUI();
@@ -183,19 +195,6 @@ app.UseStaticFiles();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
-
-// Test endpoints (remove in production)
-app.MapGet("/test-secret", (IConfiguration config) =>
-    Results.Ok(new
-    {
-        JwtKey = config["Jwt:Key"],
-        SmtpUser = config["EmailSettings:Username"]
-    })
-);
-
-app.MapGet("/test-connection", (IConfiguration config) =>
-    Results.Ok(config.GetConnectionString("DefaultConnection"))
-);
 
 app.MapControllers();
 app.Run();
