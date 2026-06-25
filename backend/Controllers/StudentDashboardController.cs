@@ -69,7 +69,6 @@ namespace NjalaAPI.Controllers
             var doc = await _context.Documents.FindAsync(id);
             if (doc == null) return NotFound();
 
-            // log download
             var uid = GetUserId();
             _context.DocumentDownloads.Add(new DocumentDownload
             {
@@ -80,11 +79,38 @@ namespace NjalaAPI.Controllers
             });
             await _context.SaveChangesAsync();
 
-            // serve file
-            var path = Path.Combine(Directory.GetCurrentDirectory(), "UploadedFiles", doc.FilePath);
-            if (!System.IO.File.Exists(path)) return NotFound();
-            var bytes = await System.IO.File.ReadAllBytesAsync(path);
-            return File(bytes, "application/octet-stream", Path.GetFileName(path));
+            return ServeDocumentFile(doc.FilePath, inline: false);
+        }
+
+        [HttpGet("view/{id:int}")]
+        public async Task<IActionResult> View(int id)
+        {
+            var doc = await _context.Documents.FindAsync(id);
+            if (doc == null) return NotFound();
+
+            return ServeDocumentFile(doc.FilePath, inline: true);
+        }
+
+        private IActionResult ServeDocumentFile(string storedPath, bool inline)
+        {
+            try
+            {
+                var path = DocumentFileHelper.ResolveDocumentPath(storedPath);
+                var fileName = DocumentFileHelper.SanitizeFileName(Path.GetFileName(path));
+                var contentType = DocumentFileHelper.GetContentType(path);
+
+                if (inline)
+                {
+                    Response.Headers.ContentDisposition = $"inline; filename=\"{fileName}\"";
+                    return PhysicalFile(path, contentType);
+                }
+
+                return PhysicalFile(path, contentType, fileName);
+            }
+            catch (FileNotFoundException)
+            {
+                return NotFound("File not found");
+            }
         }
 
         [HttpPut("profile")]

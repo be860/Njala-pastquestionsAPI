@@ -67,14 +67,28 @@ namespace NjalaAPI.Services
         // 🔹 AI Tutor: Answer a question
         public async Task<string> AskTutorAsync(string question)
         {
+            return await AskTutorWithHistoryAsync(new[]
+            {
+                new TutorChatMessage("user", question)
+            });
+        }
+
+        public async Task<string> AskTutorWithHistoryAsync(IEnumerable<TutorChatMessage> messages)
+        {
+            var chatMessages = new List<object>
+            {
+                new { role = "system", content = "You are an academic tutor. Give clear, helpful explanations to university students. Keep answers concise but thorough." }
+            };
+
+            foreach (var message in messages)
+            {
+                chatMessages.Add(new { role = message.Role, content = message.Content });
+            }
+
             var body = new
             {
                 model = "llama-3.3-70b-versatile",
-                messages = new[]
-                {
-                    new { role = "system", content = "You are an academic tutor. Give clear, short explanations to university students." },
-                    new { role = "user", content = question }
-                }
+                messages = chatMessages
             };
 
             var response = await _httpClient.PostAsync(
@@ -85,18 +99,17 @@ namespace NjalaAPI.Services
             var result = await response.Content.ReadAsStringAsync();
             using var json = JsonDocument.Parse(result);
 
-            // ✅ Handle possible error response gracefully
             if (json.RootElement.TryGetProperty("error", out var error))
             {
                 var message = error.GetProperty("message").GetString();
                 throw new Exception($"Groq API error: {message}");
             }
 
-            // ✅ Ensure 'choices' array exists
             if (!json.RootElement.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0)
                 throw new Exception($"Unexpected API response: {result}");
 
-            return json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
+            return json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString()
+                ?? "No response generated.";
         }
 
         /// <summary>
@@ -129,4 +142,6 @@ namespace NjalaAPI.Services
             return chunks;
         }
     }
+
+    public record TutorChatMessage(string Role, string Content);
 }

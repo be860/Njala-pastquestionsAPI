@@ -1,12 +1,14 @@
 "use client"
 
+import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Filter, Download, BookOpen, ChevronRight, Loader2 } from "lucide-react"
+import { Search, Filter, Download, BookOpen, ChevronRight, Loader2, Eye, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useAuth } from "@/contexts/AuthContext"
 import { documentsApi } from "@/lib/api/documents"
-import { dashboardApi } from "@/lib/api/dashboard"
+import { dashboardApi, saveDocumentBlob } from "@/lib/api/dashboard"
 import { useToast } from "@/hooks/use-toast"
 
 export default function QuestionsPage() {
@@ -17,6 +19,10 @@ export default function QuestionsPage() {
   const [selectedYear, setSelectedYear] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [viewingDoc, setViewingDoc] = useState<{ id: number; title: string } | null>(null)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [isViewLoading, setIsViewLoading] = useState(false)
+  const [downloadingId, setDownloadingId] = useState<number | null>(null)
   const [questions, setQuestions] = useState<Array<{
     id: number
     title: string
@@ -85,17 +91,13 @@ export default function QuestionsPage() {
     return matchesSubject && matchesYear && matchesSearch
   })
 
-  const handleDownload = async (id: number, title: string) => {
+  const handleDownload = async (e: React.MouseEvent, id: number, title: string) => {
+    e.stopPropagation()
+    setDownloadingId(id)
     try {
       const blob = await dashboardApi.downloadDocument(id)
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `${title}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+      const safeTitle = title.replace(/[<>:"/\\|?*]/g, "_").trim() || "document"
+      saveDocumentBlob(blob, `${safeTitle}.pdf`)
       toast({
         title: "Download Started",
         description: "Your document is downloading",
@@ -106,8 +108,47 @@ export default function QuestionsPage() {
         description: error.message || "Failed to download document",
         variant: "destructive",
       })
+    } finally {
+      setDownloadingId(null)
     }
   }
+
+  const handleView = async (question: { id: number; title: string }) => {
+    setViewingDoc(question)
+    setIsViewLoading(true)
+    setPdfUrl(null)
+
+    try {
+      const blob = await dashboardApi.viewDocument(question.id)
+      const url = window.URL.createObjectURL(blob)
+      setPdfUrl(url)
+    } catch (error: any) {
+      setViewingDoc(null)
+      toast({
+        title: "Unable to Open Document",
+        description: error.message || "Failed to load document for viewing",
+        variant: "destructive",
+      })
+    } finally {
+      setIsViewLoading(false)
+    }
+  }
+
+  const closeViewer = () => {
+    if (pdfUrl) {
+      window.URL.revokeObjectURL(pdfUrl)
+    }
+    setPdfUrl(null)
+    setViewingDoc(null)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) {
+        window.URL.revokeObjectURL(pdfUrl)
+      }
+    }
+  }, [pdfUrl])
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -225,6 +266,15 @@ export default function QuestionsPage() {
           filteredQuestions.map((question, index) => (
             <div
               key={question.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => handleView(question)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  handleView(question)
+                }
+              }}
               className="bg-card border border-border rounded-lg p-6 hover:border-primary hover:shadow-lg transition-all group cursor-pointer animate-slide-up"
               style={{ animationDelay: `${index * 50}ms` }}
             >
@@ -244,23 +294,42 @@ export default function QuestionsPage() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  {question.completed && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-sm">✓</span>
-                      </div>
-                    </div>
-                  )}
-                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleView(question)
+                    }}
+                    className="p-2 rounded-lg hover:bg-muted transition-colors"
+                    aria-label="View document"
+                  >
+                    <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </button>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end pt-4 border-t border-border">
+              <div className="flex items-center justify-between pt-4 border-t border-border">
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleView(question)
+                  }}
+                >
+                  <Eye className="w-4 h-4" />
+                  View PDF
+                </Button>
                 <Button
                   className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2"
-                  onClick={() => handleDownload(question.id, question.title)}
+                  disabled={downloadingId === question.id}
+                  onClick={(e) => handleDownload(e, question.id, question.title)}
                 >
-                  <Download className="w-4 h-4" />
+                  {downloadingId === question.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
                   Download PDF
                 </Button>
               </div>
@@ -283,6 +352,39 @@ export default function QuestionsPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={!!viewingDoc} onOpenChange={(open) => !open && closeViewer()}>
+        <DialogContent className="max-w-5xl w-[95vw] h-[90vh] p-0 gap-0 overflow-hidden flex flex-col" showCloseButton={false}>
+          <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
+            <div className="flex items-center justify-between gap-4">
+              <DialogTitle className="text-lg font-semibold truncate pr-4">
+                {viewingDoc?.title}
+              </DialogTitle>
+              <button
+                type="button"
+                onClick={closeViewer}
+                className="p-2 rounded-lg hover:bg-muted transition-colors shrink-0"
+                aria-label="Close viewer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 bg-muted/30">
+            {isViewLoading ? (
+              <div className="h-full flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : pdfUrl ? (
+              <iframe
+                src={pdfUrl}
+                title={viewingDoc?.title || "Document preview"}
+                className="w-full h-full border-0"
+              />
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

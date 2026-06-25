@@ -89,7 +89,8 @@ namespace NjalaAPI.Controllers
             if (!Directory.Exists(uploadsFolder))
                 Directory.CreateDirectory(uploadsFolder);
 
-            var filePath = Path.Combine(uploadsFolder, dto.File.FileName);
+            var fileName = dto.File.FileName;
+            var filePath = Path.Combine(uploadsFolder, fileName);
 
             using (var stream = new FileStream(filePath, FileMode.Create))
                 await dto.File.CopyToAsync(stream);
@@ -104,7 +105,7 @@ namespace NjalaAPI.Controllers
                 Description = dto.Description,
                 CourseCode = dto.CourseCode,
                 Year = dto.Year,
-                FilePath = filePath,
+                FilePath = fileName,
                 Uploader = User.Identity?.Name ?? "Unknown",
                 UploadDate = DateTime.UtcNow,
                 Summary = aiSummary // ✅ new AI field
@@ -125,10 +126,17 @@ namespace NjalaAPI.Controllers
             var doc = await _documentService.GetByIdAsync(id);
             if (doc == null) return NotFound();
 
-            var path = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), doc.FilePath);
-            if (!System.IO.File.Exists(path)) return NotFound("File not found");
-
-            return PhysicalFile(path, "application/octet-stream", Path.GetFileName(path));
+            try
+            {
+                var path = DocumentFileHelper.ResolveDocumentPath(doc.FilePath);
+                var fileName = DocumentFileHelper.SanitizeFileName(Path.GetFileName(path));
+                var contentType = DocumentFileHelper.GetContentType(path);
+                return PhysicalFile(path, contentType, fileName);
+            }
+            catch (FileNotFoundException)
+            {
+                return NotFound("File not found");
+            }
         }
 
         // ❌ Delete a document
