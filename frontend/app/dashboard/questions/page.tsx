@@ -3,11 +3,11 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Filter, Download, BookOpen, ChevronRight, Loader2, Eye, X } from "lucide-react"
+import { Search, Filter, Download, BookOpen, ChevronRight, Loader2, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useAuth } from "@/contexts/AuthContext"
-import { documentsApi } from "@/lib/api/documents"
+import { documentsApi, type Document } from "@/lib/api/documents"
 import { dashboardApi, saveDocumentBlob } from "@/lib/api/dashboard"
 import { useToast } from "@/hooks/use-toast"
 
@@ -19,17 +19,10 @@ export default function QuestionsPage() {
   const [selectedYear, setSelectedYear] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(true)
-  const [viewingDoc, setViewingDoc] = useState<{ id: number; title: string } | null>(null)
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [viewingDoc, setViewingDoc] = useState<Document | null>(null)
   const [isViewLoading, setIsViewLoading] = useState(false)
   const [downloadingId, setDownloadingId] = useState<number | null>(null)
-  const [questions, setQuestions] = useState<Array<{
-    id: number
-    title: string
-    courseCode: string
-    year: number
-    description: string
-  }>>([])
+  const [questions, setQuestions] = useState<Document[]>([])
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -87,7 +80,8 @@ export default function QuestionsPage() {
     const matchesSubject = !selectedSubject || q.courseCode === selectedSubject
     const matchesYear = !selectedYear || q.year.toString() === selectedYear
     const matchesSearch = q.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      q.description.toLowerCase().includes(searchTerm.toLowerCase())
+      q.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (q.summary?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
     return matchesSubject && matchesYear && matchesSearch
   })
 
@@ -113,20 +107,18 @@ export default function QuestionsPage() {
     }
   }
 
-  const handleView = async (question: { id: number; title: string }) => {
-    setViewingDoc(question)
+  const handleView = async (question: Document) => {
     setIsViewLoading(true)
-    setPdfUrl(null)
+    setViewingDoc(question)
 
     try {
-      const blob = await dashboardApi.viewDocument(question.id)
-      const url = window.URL.createObjectURL(blob)
-      setPdfUrl(url)
+      const fullDocument = await documentsApi.getById(question.id)
+      setViewingDoc(fullDocument)
     } catch (error: any) {
       setViewingDoc(null)
       toast({
-        title: "Unable to Open Document",
-        description: error.message || "Failed to load document for viewing",
+        title: "Unable to Load Document",
+        description: error.message || "Failed to load document details",
         variant: "destructive",
       })
     } finally {
@@ -135,20 +127,8 @@ export default function QuestionsPage() {
   }
 
   const closeViewer = () => {
-    if (pdfUrl) {
-      window.URL.revokeObjectURL(pdfUrl)
-    }
-    setPdfUrl(null)
     setViewingDoc(null)
   }
-
-  useEffect(() => {
-    return () => {
-      if (pdfUrl) {
-        window.URL.revokeObjectURL(pdfUrl)
-      }
-    }
-  }, [pdfUrl])
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -288,7 +268,10 @@ export default function QuestionsPage() {
                     <span className="text-muted-foreground">{question.courseCode}</span>
                     <span className="text-muted-foreground">{question.year}</span>
                   </div>
-                  {question.description && (
+                  {question.summary && (
+                    <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{question.summary}</p>
+                  )}
+                  {!question.summary && question.description && (
                     <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{question.description}</p>
                   )}
                 </div>
@@ -318,7 +301,7 @@ export default function QuestionsPage() {
                   }}
                 >
                   <Eye className="w-4 h-4" />
-                  View PDF
+                  View Details
                 </Button>
                 <Button
                   className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2"
@@ -354,35 +337,82 @@ export default function QuestionsPage() {
       </div>
 
       <Dialog open={!!viewingDoc} onOpenChange={(open) => !open && closeViewer()}>
-        <DialogContent className="max-w-5xl w-[95vw] h-[90vh] p-0 gap-0 overflow-hidden flex flex-col" showCloseButton={false}>
+        <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
           <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
-            <div className="flex items-center justify-between gap-4">
-              <DialogTitle className="text-lg font-semibold truncate pr-4">
-                {viewingDoc?.title}
-              </DialogTitle>
-              <button
-                type="button"
-                onClick={closeViewer}
-                className="p-2 rounded-lg hover:bg-muted transition-colors shrink-0"
-                aria-label="Close viewer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+            <div className="flex items-start justify-between gap-4 pr-8">
+              <div className="min-w-0">
+                <DialogTitle className="text-xl font-semibold">{viewingDoc?.title}</DialogTitle>
+                {viewingDoc && (
+                  <div className="flex flex-wrap gap-2 mt-2 text-sm text-muted-foreground">
+                    <span>{viewingDoc.courseCode}</span>
+                    <span>•</span>
+                    <span>Year {viewingDoc.year}</span>
+                    {viewingDoc.uploader && (
+                      <>
+                        <span>•</span>
+                        <span>By {viewingDoc.uploader}</span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </DialogHeader>
-          <div className="flex-1 bg-muted/30">
+
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
             {isViewLoading ? (
-              <div className="h-full flex items-center justify-center">
+              <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
               </div>
-            ) : pdfUrl ? (
-              <iframe
-                src={pdfUrl}
-                title={viewingDoc?.title || "Document preview"}
-                className="w-full h-full border-0"
-              />
-            ) : null}
+            ) : (
+              <>
+                {viewingDoc?.description && (
+                  <section>
+                    <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                      Description
+                    </h4>
+                    <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+                      {viewingDoc.description}
+                    </p>
+                  </section>
+                )}
+
+                {viewingDoc?.summary && (
+                  <section>
+                    <h4 className="text-sm font-semibold uppercase tracking-wide text-primary mb-2">
+                      AI Summary
+                    </h4>
+                    <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                      <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+                        {viewingDoc.summary}
+                      </p>
+                    </div>
+                  </section>
+                )}
+
+                {!viewingDoc?.description && !viewingDoc?.summary && (
+                  <p className="text-sm text-muted-foreground">No description available for this document.</p>
+                )}
+              </>
+            )}
           </div>
+
+          {viewingDoc && !isViewLoading && (
+            <div className="px-6 py-4 border-t border-border shrink-0 flex justify-end">
+              <Button
+                className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2"
+                disabled={downloadingId === viewingDoc.id}
+                onClick={(e) => handleDownload(e, viewingDoc.id, viewingDoc.title)}
+              >
+                {downloadingId === viewingDoc.id ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                Download PDF
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

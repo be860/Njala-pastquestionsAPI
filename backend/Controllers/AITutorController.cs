@@ -116,45 +116,52 @@ namespace NjalaAPI.Controllers
 
             var userId = GetUserId();
             var session = await _context.ChatSessions
-                .Include(s => s.Messages.OrderBy(m => m.CreatedAt))
                 .FirstOrDefaultAsync(s => s.Id == id && s.UserId == userId);
 
             if (session == null) return NotFound();
 
             var question = dto.Question.Trim();
-            var userMessage = new ChatMessage
-            {
-                Id = Guid.NewGuid(),
-                SessionId = session.Id,
-                Role = "user",
-                Content = question,
-                CreatedAt = DateTime.UtcNow
-            };
 
-            session.Messages.Add(userMessage);
+            var historyMessages = await _context.ChatMessages
+                .AsNoTracking()
+                .Where(m => m.SessionId == id)
+                .OrderBy(m => m.CreatedAt)
+                .ToListAsync();
 
-            if (session.Title == "New Chat")
-            {
-                session.Title = question.Length > 50 ? question[..50] + "..." : question;
-            }
-
-            var history = session.Messages
-                .Where(m => m.Id != userMessage.Id)
+            var history = historyMessages
                 .Select(m => new TutorChatMessage(m.Role, m.Content))
                 .Append(new TutorChatMessage("user", question));
 
             var answer = await _groqService.AskTutorWithHistoryAsync(history);
 
+            var userMessage = new ChatMessage
+            {
+                Id = Guid.NewGuid(),
+                SessionId = id,
+                Role = "user",
+                Content = question,
+                CreatedAt = DateTime.UtcNow
+            };
+
             var assistantMessage = new ChatMessage
             {
                 Id = Guid.NewGuid(),
-                SessionId = session.Id,
+                SessionId = id,
                 Role = "assistant",
                 Content = answer,
                 CreatedAt = DateTime.UtcNow
             };
 
-            session.Messages.Add(assistantMessage);
+            _context.ChatMessages.Add(userMessage);
+            _context.ChatMessages.Add(assistantMessage);
+
+            var newTitle = session.Title;
+            if (session.Title == "New Chat")
+            {
+                newTitle = question.Length > 50 ? question[..50] + "..." : question;
+            }
+
+            session.Title = newTitle;
             session.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -163,7 +170,7 @@ namespace NjalaAPI.Controllers
             {
                 question,
                 answer,
-                sessionTitle = session.Title,
+                sessionTitle = newTitle,
                 userMessage = new { userMessage.Id, role = userMessage.Role, content = userMessage.Content, userMessage.CreatedAt },
                 assistantMessage = new { assistantMessage.Id, role = assistantMessage.Role, content = assistantMessage.Content, assistantMessage.CreatedAt }
             });

@@ -1,4 +1,4 @@
-import { apiRequest, getAuthToken, API_CONFIG } from './config';
+import { apiRequest, API_CONFIG, fetchWithAuth } from './config';
 
 export interface StudentDashboardStats {
   downloadCount: number;
@@ -49,23 +49,11 @@ export const dashboardApi = {
     return blob
   },
 
-  viewDocument: async (id: number): Promise<Blob> => {
-    const { blob } = await fetchStudentDocument(id, 'view')
-    return blob
-  },
-
   updateProfile: async (formData: FormData): Promise<{ fullName: string; email: string; avatarUrl?: string }> => {
-    const token = getAuthToken();
     const url = `${API_CONFIG.baseURL}/student-dashboard/profile`;
 
-    const headers: HeadersInit = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'PUT',
-      headers,
       body: formData,
     });
 
@@ -80,16 +68,11 @@ export const dashboardApi = {
 
 async function fetchStudentDocument(
   id: number,
-  mode: 'download' | 'view'
+  mode: 'download'
 ): Promise<{ blob: Blob; fileName: string }> {
-  const token = getAuthToken()
   const url = `${API_CONFIG.baseURL}/student-dashboard/${mode}/${id}`
 
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  })
+  const response = await fetchWithAuth(url)
 
   if (!response.ok) {
     throw new Error(mode === 'view' ? 'Failed to load document' : 'Failed to download document')

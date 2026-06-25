@@ -1,4 +1,4 @@
-import { apiRequest, apiRequestFormData, API_CONFIG, getAuthToken } from './config';
+import { apiRequest, apiRequestFormData, API_CONFIG, fetchWithAuth } from './config';
 
 export interface Document {
   id: number;
@@ -62,20 +62,17 @@ export const documentsApi = {
   },
 
   download: async (id: number): Promise<Blob> => {
-    const token = getAuthToken();
     const url = `${API_CONFIG.baseURL}/document/download/${id}`;
     
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+    const response = await fetchWithAuth(url);
 
     if (!response.ok) {
       throw new Error('Failed to download document');
     }
 
-    return response.blob();
+    const contentType = response.headers.get('content-type') || 'application/pdf';
+    const arrayBuffer = await response.arrayBuffer();
+    return new Blob([arrayBuffer], { type: contentType });
   },
 
   delete: async (id: number): Promise<{ message: string }> => {

@@ -6,6 +6,8 @@ export const API_CONFIG = {
   timeout: 30000,
 };
 
+let refreshInFlight: Promise<string | null> | null = null;
+
 // Helper function to get auth token
 export const getAuthToken = (): string | null => {
   if (typeof window === 'undefined') return null;
@@ -38,21 +40,43 @@ export const setRefreshToken = (token: string): void => {
   localStorage.setItem('refreshToken', token);
 };
 
-// API request wrapper
-export const apiRequest = async <T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> => {
-  const token = getAuthToken();
-  const url = `${API_CONFIG.baseURL}${endpoint}`;
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
 
+  if (!refreshInFlight) {
+    refreshInFlight = fetch(`${API_CONFIG.baseURL}/auth/refresh-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (!data?.token) return null;
+        setAuthToken(data.token);
+        if (data.refreshToken) {
+          setRefreshToken(data.refreshToken);
+        }
+        return data.token as string;
+      })
+      .catch(() => null)
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+
+  return refreshInFlight;
+}
+
+export async function fetchWithAuth(url: string, options: RequestInit = {}, retryOnUnauthorized = true): Promise<Response> {
+  const token = getAuthToken();
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
 
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers.Authorization = `Bearer ${token}`;
   }
 
   const response = await fetch(url, {
@@ -60,17 +84,44 @@ export const apiRequest = async <T>(
     headers,
   });
 
-  if (!response.ok) {
-    // Handle 401 Unauthorized - token expired or invalid
-    if (response.status === 401) {
-      // Clear auth data and redirect to login
-      removeAuthToken();
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
-      throw new Error('Unauthorized - Please login again');
+  if (response.status === 401 && retryOnUnauthorized) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      headers.Authorization = `Bearer ${newToken}`;
+      return fetch(url, {
+        ...options,
+        headers,
+      });
     }
 
+    removeAuthToken();
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
+    throw new Error('Unauthorized - Please login again');
+  }
+
+  return response;
+}
+
+// API request wrapper
+export const apiRequest = async <T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> => {
+  const url = `${API_CONFIG.baseURL}${endpoint}`;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+
+  const response = await fetchWithAuth(url, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }));
     throw new Error(error.message || `HTTP error! status: ${response.status}`);
   }
@@ -84,18 +135,10 @@ export const apiRequestFormData = async <T>(
   formData: FormData,
   options: RequestInit = {}
 ): Promise<T> => {
-  const token = getAuthToken();
   const url = `${API_CONFIG.baseURL}${endpoint}`;
 
-  const headers: Record<string, string> = {};
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const response = await fetch(url, {
+  const response = await fetchWithAuth(url, {
     method: 'POST',
-    headers,
     body: formData,
     ...options,
   });
@@ -107,5 +150,3 @@ export const apiRequestFormData = async <T>(
 
   return response.json();
 };
-
-
