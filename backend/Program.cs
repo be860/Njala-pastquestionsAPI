@@ -6,7 +6,9 @@ using Microsoft.OpenApi.Models;
 using NjalaAPI.Data;
 using NjalaAPI.Models;
 using NjalaAPI.Services;
+using Microsoft.Extensions.Options;
 using NjalaAPI.Services.Interfaces;
+using Resend;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -87,7 +89,37 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<GroqService>();
 builder.Services.AddScoped<DocumentTextExtractor>();
 
+var resendApiKey = builder.Configuration["RESEND_API_KEY"];
+var resendFromEmail = builder.Configuration["RESEND_FROM_EMAIL"];
 
+Console.WriteLine($"RESEND_API_KEY configured: {!string.IsNullOrWhiteSpace(resendApiKey)}");
+Console.WriteLine($"RESEND_FROM_EMAIL configured: {!string.IsNullOrWhiteSpace(resendFromEmail)}");
+
+if (string.IsNullOrWhiteSpace(resendApiKey))
+{
+    throw new InvalidOperationException("RESEND_API_KEY is not configured. Set it in environment variables.");
+}
+
+if (string.IsNullOrWhiteSpace(resendFromEmail))
+{
+    throw new InvalidOperationException("RESEND_FROM_EMAIL is not configured. Set it in environment variables.");
+}
+
+builder.Services.AddHttpClient();
+builder.Services.Configure<ResendClientOptions>(options =>
+{
+    options.ApiToken = resendApiKey;
+});
+
+builder.Services.AddScoped<ResendClient>(sp =>
+{
+    var options = sp.GetRequiredService<IOptionsSnapshot<ResendClientOptions>>();
+    var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+
+    return new ResendClient(
+        options,
+        httpClientFactory.CreateClient());
+});
 
 builder.Services.AddControllers();
 

@@ -1,58 +1,53 @@
-﻿using System.Net.Mail;
-using System.Net;
+﻿using Resend;
 
 public class EmailService : IEmailService
 {
-    private readonly IConfiguration _config;
+    private readonly ResendClient _resendClient;
     private readonly ILogger<EmailService> _logger;
+    private readonly string _fromAddress;
     
-    public EmailService(IConfiguration config, ILogger<EmailService> logger)
+    public EmailService(ResendClient resendClient, IConfiguration config, ILogger<EmailService> logger)
     {
-        _config = config;
+        _resendClient = resendClient;
         _logger = logger;
+        _fromAddress = config["RESEND_FROM_EMAIL"] ?? throw new InvalidOperationException("RESEND_FROM_EMAIL is not configured. Set it in environment variables.");
     }
 
     public async Task SendAsync(string to, string subject, string body)
     {
         try
         {
-            var emailSettings = _config.GetSection("EmailSettings");
-            var fromEmail = emailSettings["From"];
-            var smtpHost = emailSettings["SmtpHost"];
-            var smtpPort = int.Parse(emailSettings["SmtpPort"] ?? "587");
-            var username = emailSettings["Username"];
-            var password = emailSettings["Password"];
-
-            if (string.IsNullOrEmpty(fromEmail) || string.IsNullOrEmpty(smtpHost) || string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            var message = new EmailMessage
             {
-                throw new InvalidOperationException("Email settings are not configured properly. Check appsettings.json");
+                From = _fromAddress,
+                To = new[] { to },
+                Subject = subject,
+                HtmlBody = body
+            };
+
+            var response = await _resendClient.EmailSendAsync(message);
+
+            if (response.Success)
+            {
+                _logger.LogInformation(
+                    "Email sent successfully to {Email}. ResendMessageId={MessageId}",
+                    to,
+                    response.Content);
             }
-            _logger.LogInformation(
-    "SMTP CONFIG -> Host:{Host}, Port:{Port}, User:{User}, PasswordExists:{PasswordExists}",
-    smtpHost,
-    smtpPort,
-    username,
-    !string.IsNullOrEmpty(password)
-);
-            var message = new MailMessage(fromEmail, to, subject, body)
+            else
             {
-                IsBodyHtml = true
-            };
-
-            using var smtp = new SmtpClient(smtpHost, smtpPort)
-            {
-                EnableSsl = true,
-                Credentials = new NetworkCredential(username, password),
-                Timeout = 10000 // 10 second timeout
-            };
-
-            _logger.LogInformation($"Sending email to {to} via {smtpHost}:{smtpPort}");
-            await smtp.SendMailAsync(message);
-            _logger.LogInformation($"Email sent successfully to {to}");
+                _logger.LogError(
+                    "Resend API returned failure for {Email}. ResendMessageId={MessageId}. Exception={Exception}",
+                    to,
+                    response.Content,
+                    response.Exception?.Message);
+                throw new InvalidOperationException($"Resend API failed to send email to {to}. {response.Exception?.Message}");
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError("EMAIL ERROR sending to {Email}: {Error}",
+            _logger.LogError(
+                "Resend Email Error sending to {Email}: {Error}",
                 to,
                 ex.ToString());
 
