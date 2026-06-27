@@ -19,6 +19,40 @@ export interface GlobalStats {
   downloads: number;
 }
 
+export interface StudentAnalytics {
+  overallProgress: number;
+  totalDownloads: number;
+  downloadsThisWeek: number;
+  downloadWeeklyChange: number;
+  uniqueDocumentsDownloaded: number;
+  totalDocuments: number;
+  studyTime: {
+    totalHours: number;
+    thisWeekHours: number;
+    weeklyChangePercent: number;
+  };
+  bestSubject: {
+    subject: string;
+    score: number;
+  } | null;
+  subjectPerformance: Array<{
+    subject: string;
+    downloads: number;
+    studyMinutes: number;
+    engagementScore: number;
+  }>;
+  weeklyTrend: Array<{
+    week: string;
+    downloads: number;
+    studyHours: number;
+    engagementScore: number;
+  }>;
+  studyTimeBySubject: Array<{
+    subject: string;
+    totalMinutes: number;
+  }>;
+}
+
 export const dashboardApi = {
   getStudentDashboard: async (): Promise<StudentDashboardStats> => {
     const [downloadCount, documentsCount, recentDocuments] = await Promise.all([
@@ -42,6 +76,10 @@ export const dashboardApi = {
 
   getGlobalStats: async (): Promise<GlobalStats> => {
     return apiRequest('/stats/global');
+  },
+
+  getAnalytics: async (): Promise<StudentAnalytics> => {
+    return apiRequest('/student-dashboard/analytics');
   },
 
   downloadDocument: async (id: number): Promise<Blob> => {

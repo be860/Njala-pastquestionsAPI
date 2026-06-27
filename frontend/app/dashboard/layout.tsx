@@ -5,9 +5,10 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { Menu, X, LogOut, Settings, User } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { UserAvatar } from "@/components/user-avatar"
+import { useStudySession, getStudySubjectFromPath } from "@/hooks/useStudySession"
 
 export default function DashboardLayout({
   children,
@@ -15,9 +16,12 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const router = useRouter()
+  const pathname = usePathname()
   const { user, isAuthenticated, logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+
+  useStudySession(getStudySubjectFromPath(pathname))
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -36,7 +40,13 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, user, router])
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const { studyTimeApi } = await import("@/lib/api/studytime")
+      await studyTimeApi.endActiveSession()
+    } catch {
+      // ignore cleanup errors on logout
+    }
     logout()
   }
 

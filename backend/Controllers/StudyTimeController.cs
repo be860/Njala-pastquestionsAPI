@@ -35,14 +35,27 @@ namespace NjalaAPI.Controllers
         {
             var userId = GetUserId();
 
-            // Check if there's an active session
             var activeSession = await _context.StudyTimes
                 .Where(st => st.UserId == userId && st.EndTime == null)
                 .FirstOrDefaultAsync();
 
             if (activeSession != null)
             {
-                return BadRequest("You already have an active study session. Please end it first.");
+                if (activeSession.StartTime < DateTime.UtcNow.AddHours(-12))
+                {
+                    activeSession.EndTime = DateTime.UtcNow;
+                    activeSession.DurationMinutes = Math.Max(1,
+                        (int)(activeSession.EndTime.Value - activeSession.StartTime).TotalMinutes);
+                    await _context.SaveChangesAsync();
+                }
+                else
+                {
+                    if (!string.IsNullOrWhiteSpace(dto.Subject))
+                        activeSession.Subject = dto.Subject.Trim();
+
+                    await _context.SaveChangesAsync();
+                    return Ok(new { id = activeSession.Id, startTime = activeSession.StartTime, resumed = true });
+                }
             }
 
             var studyTime = new StudyTime
@@ -50,13 +63,13 @@ namespace NjalaAPI.Controllers
                 Id = Guid.NewGuid(),
                 UserId = userId,
                 StartTime = DateTime.UtcNow,
-                Subject = dto.Subject
+                Subject = string.IsNullOrWhiteSpace(dto.Subject) ? "General" : dto.Subject.Trim()
             };
 
             _context.StudyTimes.Add(studyTime);
             await _context.SaveChangesAsync();
 
-            return Ok(new { id = studyTime.Id, startTime = studyTime.StartTime });
+            return Ok(new { id = studyTime.Id, startTime = studyTime.StartTime, resumed = false });
         }
 
         [HttpPost("end/{id:guid}")]
@@ -71,10 +84,17 @@ namespace NjalaAPI.Controllers
                 return NotFound("Study session not found");
 
             if (studyTime.EndTime != null)
-                return BadRequest("Study session already ended");
+                return Ok(new
+                {
+                    id = studyTime.Id,
+                    durationMinutes = studyTime.DurationMinutes,
+                    startTime = studyTime.StartTime,
+                    endTime = studyTime.EndTime
+                });
 
             studyTime.EndTime = DateTime.UtcNow;
-            studyTime.DurationMinutes = (int)(studyTime.EndTime.Value - studyTime.StartTime).TotalMinutes;
+            studyTime.DurationMinutes = Math.Max(1,
+                (int)(studyTime.EndTime.Value - studyTime.StartTime).TotalMinutes);
 
             await _context.SaveChangesAsync();
 
@@ -85,6 +105,54 @@ namespace NjalaAPI.Controllers
                 startTime = studyTime.StartTime,
                 endTime = studyTime.EndTime
             });
+        }
+
+        [HttpPost("end-active")]
+        [Authorize(Roles = "Student")]
+        public async Task<IActionResult> EndActiveSession()
+        {
+            var userId = GetUserId();
+            var studyTime = await _context.StudyTimes
+                .FirstOrDefaultAsync(st => st.UserId == userId && st.EndTime == null);
+
+            if (studyTime == null)
+                return Ok(new { message = "No active session" });
+
+            studyTime.EndTime = DateTime.UtcNow;
+            studyTime.DurationMinutes = Math.Max(1,
+                (int)(studyTime.EndTime.Value - studyTime.StartTime).TotalMinutes);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                id = studyTime.Id,
+                durationMinutes = studyTime.DurationMinutes,
+                startTime = studyTime.StartTime,
+                endTime = studyTime.EndTime
+            });
+        }
+
+        [HttpGet("active")]
+        [Authorize(Roles = "Student")]
+        public async Task<IActionResult> GetActiveSession()
+        {
+            var userId = GetUserId();
+            var studyTime = await _context.StudyTimes
+                .Where(st => st.UserId == userId && st.EndTime == null)
+                .OrderByDescending(st => st.StartTime)
+                .Select(st => new
+                {
+                    st.Id,
+                    st.StartTime,
+                    st.Subject
+                })
+                .FirstOrDefaultAsync();
+
+            if (studyTime == null)
+                return NotFound();
+
+            return Ok(studyTime);
         }
 
         [HttpGet("stats")]

@@ -158,7 +158,8 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
         policy.WithOrigins(
-            "https://njala-pastquestions-api.vercel.app",
+            "https://njalapastquestions.site",
+            "https://www.njalapastquestions.site",
             "http://localhost:3000"
         )
         .AllowAnyHeader()

@@ -19,9 +19,7 @@ import {
 } from "recharts"
 import { TrendingUp, Award, BookOpen, Clock, Loader2 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
-import { dashboardApi } from "@/lib/api/dashboard"
-import { documentsApi } from "@/lib/api/documents"
-import { studyTimeApi } from "@/lib/api/studytime"
+import { dashboardApi, type StudentAnalytics } from "@/lib/api/dashboard"
 import { useToast } from "@/hooks/use-toast"
 
 export default function AnalyticsPage() {
@@ -29,24 +27,7 @@ export default function AnalyticsPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(true)
-  const [stats, setStats] = useState({
-    downloadCount: 0,
-    documentsCount: 0,
-    recentDocuments: [] as Array<{
-      id: number
-      title: string
-      courseCode: string
-      year: number
-      uploadDate: string
-    }>,
-  })
-  const [subjectData, setSubjectData] = useState<Array<{ subject: string; score: number; attempted: number }>>([])
-  const [studyStats, setStudyStats] = useState({
-    totalHours: 0,
-    todayHours: 0,
-    thisWeekHours: 0,
-    subjectStats: [] as Array<{ subject: string; totalMinutes: number }>,
-  })
+  const [analytics, setAnalytics] = useState<StudentAnalytics | null>(null)
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "Student") {
@@ -56,40 +37,8 @@ export default function AnalyticsPage() {
 
     const fetchData = async () => {
       try {
-        const [dashboardData, documentsRes, stats] = await Promise.all([
-          dashboardApi.getStudentDashboard(),
-          documentsApi.getAll(1, 100),
-          studyTimeApi.getStats().catch(() => ({
-            totalHours: 0,
-            todayHours: 0,
-            thisWeekHours: 0,
-            subjectStats: [],
-          })),
-        ])
-
-        setStats(dashboardData)
-        setStudyStats(stats)
-
-        // Calculate subject performance from documents and study time
-        const courseCodes = Array.from(new Set(documentsRes.items.map((doc) => doc.courseCode)))
-        const subjectPerformance = courseCodes.slice(0, 5).map((code) => {
-          const studyTimeForSubject = stats.subjectStats.find((s) => s.subject === code)
-          const studyMinutes = studyTimeForSubject?.totalMinutes || 0
-          // Calculate score based on downloads and study time
-          const downloadsForSubject = dashboardData.recentDocuments.filter(
-            (doc) => doc.courseCode === code
-          ).length
-          const score = Math.min(100, Math.floor((downloadsForSubject * 10 + studyMinutes / 10) / 2))
-          const attempted = downloadsForSubject + Math.floor(studyMinutes / 30)
-
-          return {
-            subject: code,
-            score: Math.max(60, score), // Minimum 60%
-            attempted: Math.max(1, attempted),
-          }
-        })
-
-        setSubjectData(subjectPerformance)
+        const data = await dashboardApi.getAnalytics()
+        setAnalytics(data)
       } catch (error: any) {
         toast({
           title: "Error",
@@ -104,70 +53,7 @@ export default function AnalyticsPage() {
     fetchData()
   }, [isAuthenticated, user, router, toast])
 
-  // Performance data over time (simplified - using download count as progress indicator)
-  const performanceData = [
-    { week: "Week 1", score: Math.floor((stats.downloadCount / 6) * 0.2), target: 75 },
-    { week: "Week 2", score: Math.floor((stats.downloadCount / 6) * 0.4), target: 75 },
-    { week: "Week 3", score: Math.floor((stats.downloadCount / 6) * 0.6), target: 75 },
-    { week: "Week 4", score: Math.floor((stats.downloadCount / 6) * 0.8), target: 75 },
-    { week: "Week 5", score: Math.floor((stats.downloadCount / 6) * 0.95), target: 85 },
-    { week: "Week 6", score: Math.floor(stats.downloadCount / 6), target: 85 },
-  ]
-
-  // Time distribution based on study time by subject
-  const totalStudyMinutes = studyStats.subjectStats.reduce((sum, s) => sum + s.totalMinutes, 0)
-  const timeData = studyStats.subjectStats.length > 0
-    ? studyStats.subjectStats.map((subject) => ({
-        name: subject.subject,
-        value: totalStudyMinutes > 0
-          ? Math.floor((subject.totalMinutes / totalStudyMinutes) * 100)
-          : 0,
-      }))
-    : subjectData.map((subject) => ({
-        name: subject.subject,
-        value: subjectData.reduce((sum, s) => sum + s.attempted, 0) > 0
-          ? Math.floor((subject.attempted / subjectData.reduce((sum, s) => sum + s.attempted, 0)) * 100)
-          : 0,
-      }))
-
-  const colors = ["#007BFF", "#0056b3", "#003d82", "#00264d"]
-
-  const overallProgress = stats.documentsCount > 0 ? Math.round((stats.downloadCount / stats.documentsCount) * 100) : 0
-  const bestSubject = subjectData.length > 0 ? subjectData.reduce((best, current) => (current.score > best.score ? current : best)) : null
-
-  // Key metrics
-  const metrics = [
-    {
-      icon: TrendingUp,
-      label: "Overall Progress",
-      value: `${overallProgress}%`,
-      change: `+${Math.floor(overallProgress * 0.1)}% this month`,
-      color: "from-blue-500 to-blue-600",
-    },
-    {
-      icon: Award,
-      label: "Best Subject",
-      value: bestSubject?.subject || "N/A",
-      change: bestSubject ? `${bestSubject.score}% average` : "No data",
-      color: "from-green-500 to-green-600",
-    },
-    {
-      icon: BookOpen,
-      label: "Questions Done",
-      value: stats.downloadCount.toString(),
-      change: `+${Math.floor(stats.downloadCount * 0.2)} this week`,
-      color: "from-purple-500 to-purple-600",
-    },
-    {
-      icon: Clock,
-      label: "Study Time",
-      value: `${studyStats.totalHours} hrs`,
-      change: `+${studyStats.thisWeekHours.toFixed(1)} hours this week`,
-      color: "from-orange-500 to-orange-600",
-    },
-  ]
-
-  if (isLoading) {
+  if (isLoading || !analytics) {
     return (
       <div className="p-6 max-w-7xl mx-auto flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -175,15 +61,69 @@ export default function AnalyticsPage() {
     )
   }
 
+  const timeData = analytics.studyTimeBySubject.map((subject) => {
+    const totalMinutes = analytics.studyTimeBySubject.reduce((sum, s) => sum + s.totalMinutes, 0)
+    return {
+      name: subject.subject,
+      value: totalMinutes > 0 ? Math.round((subject.totalMinutes / totalMinutes) * 100) : 0,
+      minutes: subject.totalMinutes,
+    }
+  })
+
+  const colors = ["#007BFF", "#0056b3", "#003d82", "#00264d", "#10b981", "#8b5cf6"]
+
+  const formatChange = (value: number, suffix: string) => {
+    if (value > 0) return `+${value}${suffix}`
+    if (value < 0) return `${value}${suffix}`
+    return `No change ${suffix}`
+  }
+
+  const metrics = [
+    {
+      icon: TrendingUp,
+      label: "Overall Progress",
+      value: `${analytics.overallProgress}%`,
+      change: `${analytics.uniqueDocumentsDownloaded} of ${analytics.totalDocuments} documents explored`,
+      color: "from-blue-500 to-blue-600",
+    },
+    {
+      icon: Award,
+      label: "Best Subject",
+      value: analytics.bestSubject?.subject || "N/A",
+      change: analytics.bestSubject
+        ? `${analytics.bestSubject.score}% engagement`
+        : "Start studying to see your best subject",
+      color: "from-green-500 to-green-600",
+    },
+    {
+      icon: BookOpen,
+      label: "Documents Downloaded",
+      value: analytics.totalDownloads.toString(),
+      change: formatChange(analytics.downloadsThisWeek, " this week"),
+      color: "from-purple-500 to-purple-600",
+    },
+    {
+      icon: Clock,
+      label: "Study Time",
+      value: `${analytics.studyTime.totalHours} hrs`,
+      change: `${analytics.studyTime.thisWeekHours} hrs this week (${formatChange(analytics.studyTime.weeklyChangePercent, "%")})`,
+      color: "from-orange-500 to-orange-600",
+    },
+  ]
+
+  const hasWeeklyData = analytics.weeklyTrend.some(
+    (w) => w.downloads > 0 || w.studyHours > 0
+  )
+
+  const hasSubjectData = analytics.subjectPerformance.length > 0
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Page Header */}
       <div className="mb-8 animate-fade-in">
         <h2 className="text-4xl font-bold mb-2">Your Analytics</h2>
         <p className="text-muted-foreground">Track your learning progress and performance</p>
       </div>
 
-      {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {metrics.map((metric, index) => {
           const Icon = metric.icon
@@ -206,124 +146,145 @@ export default function AnalyticsPage() {
         })}
       </div>
 
-      {/* Charts Grid */}
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
-        {/* Performance Over Time */}
         <div className="bg-card border border-border rounded-lg p-6 animate-slide-up">
-          <h3 className="text-xl font-bold mb-4">Performance Trend</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={performanceData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="week" stroke="var(--color-muted-foreground)" />
-              <YAxis stroke="var(--color-muted-foreground)" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "var(--color-card)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "8px",
-                }}
-              />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="score"
-                stroke="#007BFF"
-                strokeWidth={3}
-                dot={{ fill: "#007BFF", r: 5 }}
-                name="Your Score"
-              />
-              <Line
-                type="monotone"
-                dataKey="target"
-                stroke="#ccc"
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                name="Target"
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <h3 className="text-xl font-bold mb-4">Weekly Activity Trend</h3>
+          {hasWeeklyData ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={analytics.weeklyTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="week" stroke="var(--color-muted-foreground)" />
+                <YAxis stroke="var(--color-muted-foreground)" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "var(--color-card)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "8px",
+                  }}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="engagementScore"
+                  stroke="#007BFF"
+                  strokeWidth={3}
+                  dot={{ fill: "#007BFF", r: 5 }}
+                  name="Engagement Score"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="studyHours"
+                  stroke="#f97316"
+                  strokeWidth={2}
+                  name="Study Hours"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-muted-foreground text-sm text-center px-6">
+              No weekly activity yet. Browse past questions or use the AI assistant to start tracking your study time.
+            </div>
+          )}
         </div>
 
-        {/* Subject Performance */}
         <div
           className="bg-card border border-border rounded-lg p-6 animate-slide-up"
           style={{ animationDelay: "50ms" }}
         >
-          <h3 className="text-xl font-bold mb-4">Subject Performance</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={subjectData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="subject" stroke="var(--color-muted-foreground)" />
-              <YAxis stroke="var(--color-muted-foreground)" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "var(--color-card)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "8px",
-                }}
-              />
-              <Bar dataKey="score" fill="#007BFF" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <h3 className="text-xl font-bold mb-4">Subject Engagement</h3>
+          {hasSubjectData ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analytics.subjectPerformance}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="subject" stroke="var(--color-muted-foreground)" />
+                <YAxis stroke="var(--color-muted-foreground)" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "var(--color-card)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "8px",
+                  }}
+                />
+                <Bar dataKey="engagementScore" fill="#007BFF" radius={[8, 8, 0, 0]} name="Engagement Score" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-muted-foreground text-sm text-center px-6">
+              Download documents or study by subject to see engagement scores here.
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Study Time Distribution */}
       <div className="grid lg:grid-cols-3 gap-6">
         <div
           className="lg:col-span-2 bg-card border border-border rounded-lg p-6 animate-slide-up"
           style={{ animationDelay: "100ms" }}
         >
-          <h3 className="text-xl font-bold mb-4">Top Subjects by Questions Attempted</h3>
-          <div className="space-y-4">
-            {subjectData.map((subject, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-4 hover:bg-muted rounded-lg transition-colors"
-              >
-                <div className="flex-1">
-                  <p className="font-medium mb-1">{subject.subject}</p>
-                  <p className="text-sm text-muted-foreground">{subject.attempted} questions attempted</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-primary to-blue-600 rounded-full"
-                      style={{ width: `${(subject.score / 100) * 100}%` }}
-                    />
+          <h3 className="text-xl font-bold mb-4">Subject Breakdown</h3>
+          {hasSubjectData ? (
+            <div className="space-y-4">
+              {analytics.subjectPerformance.map((subject) => (
+                <div
+                  key={subject.subject}
+                  className="flex items-center justify-between p-4 hover:bg-muted rounded-lg transition-colors"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium mb-1">{subject.subject}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {subject.downloads} download{subject.downloads === 1 ? "" : "s"} ·{" "}
+                      {Math.round(subject.studyMinutes / 60 * 10) / 10} hrs studied
+                    </p>
                   </div>
-                  <span className="font-bold text-primary min-w-12">{subject.score}%</span>
+                  <div className="flex items-center gap-4">
+                    <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-primary to-blue-600 rounded-full"
+                        style={{ width: `${subject.engagementScore}%` }}
+                      />
+                    </div>
+                    <span className="font-bold text-primary min-w-12">{subject.engagementScore}%</span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              Your subject breakdown will appear here once you start studying.
+            </p>
+          )}
         </div>
 
-        {/* Time Distribution Pie */}
         <div
           className="bg-card border border-border rounded-lg p-6 flex flex-col items-center justify-center animate-slide-up"
           style={{ animationDelay: "150ms" }}
         >
           <h3 className="text-xl font-bold mb-4 w-full">Study Time by Subject</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={timeData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name} ${value}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {timeData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          {timeData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={timeData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, value }) => `${name} ${value}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {timeData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value, _name, props) => [`${props.payload.minutes} min`, "Study Time"]} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-12 px-4">
+              Study sessions are tracked automatically while you use the dashboard.
+            </p>
+          )}
         </div>
       </div>
     </div>

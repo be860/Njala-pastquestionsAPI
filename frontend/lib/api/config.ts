@@ -1,5 +1,5 @@
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://njala-pastquestionsapi.onrender.com/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.njalapastquestions.site/api';
 
 export const API_CONFIG = {
   baseURL: API_BASE_URL,

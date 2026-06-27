@@ -37,7 +37,7 @@ export function resolveAvatarUrl(avatarUrl?: string | null): string | null {
   }
 
   // Remove trailing /api from the configured base URL so we can serve static files
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://njala-pastquestionsapi.onrender.com/api'
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://api.njalapastquestions.site/api'
   const host = apiBase.replace(/\/api\/?$/, '')
 
   if (avatarUrl.startsWith('/')) {

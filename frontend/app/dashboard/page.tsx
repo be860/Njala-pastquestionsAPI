@@ -24,6 +24,8 @@ export default function DashboardPage() {
       uploadDate: string
     }>,
   })
+  const [studyHours, setStudyHours] = useState(0)
+  const [overallProgress, setOverallProgress] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -32,7 +34,6 @@ export default function DashboardPage() {
       return
     }
 
-    // Redirect based on role - student dashboard is only for students
     if (user.role === "SuperAdmin") {
       router.push("/superadmin/dashboard")
       return
@@ -46,13 +47,16 @@ export default function DashboardPage() {
       return
     }
 
-    // Only fetch data if user is a Student
     const fetchData = async () => {
       try {
-        const data = await dashboardApi.getStudentDashboard()
-        setStats(data)
+        const [dashboardData, analytics] = await Promise.all([
+          dashboardApi.getStudentDashboard(),
+          dashboardApi.getAnalytics(),
+        ])
+        setStats(dashboardData)
+        setStudyHours(analytics.studyTime.totalHours)
+        setOverallProgress(analytics.overallProgress)
       } catch (error: any) {
-        // Don't show error if it's a 403 (forbidden) - user might be redirecting
         if (error.message?.includes("403") || error.message?.includes("Forbidden")) {
           router.push("/login")
           return
@@ -79,26 +83,25 @@ export default function DashboardPage() {
   }
 
   const quickStats = [
+    { label: "Overall Progress", value: `${overallProgress}%`, change: "Documents explored" },
     { label: "Downloads", value: stats.downloadCount.toString(), change: "Total downloads" },
+    { label: "Study Time", value: `${studyHours} hrs`, change: "Tracked automatically" },
     { label: "Available Documents", value: stats.documentsCount.toString(), change: "Past questions" },
-    { label: "Recent Documents", value: stats.recentDocuments.length.toString(), change: "Latest uploads" },
   ]
 
   const recentActivity = stats.recentDocuments.map((doc) => ({
+    title: doc.title,
     subject: doc.courseCode,
-    questions: 1,
     date: new Date(doc.uploadDate).toLocaleDateString(),
   }))
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* Welcome Section */}
       <div className="mb-8 animate-fade-in">
         <h2 className="text-4xl font-bold mb-2">Welcome back, {user?.fullName || "Student"}!</h2>
         <p className="text-muted-foreground">Continue your learning journey</p>
       </div>
 
-      {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {quickStats.map((stat, index) => (
           <div
@@ -113,7 +116,6 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Main Actions */}
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-lg p-8">
           <h3 className="text-2xl font-bold mb-3">Continue Learning</h3>
@@ -132,23 +134,28 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent Activity */}
       <div className="bg-card border border-border rounded-lg p-6">
-        <h3 className="text-xl font-bold mb-4">Recent Activity</h3>
-        <div className="space-y-3">
-          {recentActivity.map((activity, index) => (
-            <div
-              key={index}
-              className="flex items-center justify-between p-3 hover:bg-muted rounded-lg transition-colors"
-            >
-              <div>
-                <p className="font-medium">{activity.subject}</p>
-                <p className="text-sm text-muted-foreground">{activity.questions} questions completed</p>
+        <h3 className="text-xl font-bold mb-4">Recent Downloads</h3>
+        {recentActivity.length > 0 ? (
+          <div className="space-y-3">
+            {recentActivity.map((activity, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between p-3 hover:bg-muted rounded-lg transition-colors"
+              >
+                <div>
+                  <p className="font-medium">{activity.title}</p>
+                  <p className="text-sm text-muted-foreground">{activity.subject}</p>
+                </div>
+                <p className="text-sm text-muted-foreground">{activity.date}</p>
               </div>
-              <p className="text-sm text-muted-foreground">{activity.date}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No downloads yet. Browse past questions to download study materials.
+          </p>
+        )}
       </div>
     </div>
   )

@@ -50,17 +50,178 @@ namespace NjalaAPI.Controllers
         [HttpGet("documents/recent")]
         public async Task<IActionResult> GetRecentDocuments()
         {
-            var docs = await _context.Documents
-                .OrderByDescending(d => d.UploadDate)
+            var uid = GetUserId();
+            var docs = await _context.DocumentDownloads
+                .Where(d => d.UserId == uid)
+                .Include(d => d.Document)
+                .OrderByDescending(d => d.DownloadedAt)
                 .Take(5)
                 .Select(d => new {
-                    d.Id,
-                    d.Title,
-                    d.CourseCode,
-                    d.Year,
-                    d.UploadDate
+                    d.Document.Id,
+                    d.Document.Title,
+                    d.Document.CourseCode,
+                    d.Document.Year,
+                    uploadDate = d.DownloadedAt
                 }).ToListAsync();
             return Ok(docs);
+        }
+
+        [HttpGet("analytics")]
+        public async Task<IActionResult> GetAnalytics()
+        {
+            var uid = GetUserId();
+            var now = DateTime.UtcNow;
+
+            var totalDocuments = await _context.Documents.CountAsync();
+            var totalDownloads = await _context.DocumentDownloads.CountAsync(d => d.UserId == uid);
+
+            var downloadsThisWeek = await _context.DocumentDownloads
+                .CountAsync(d => d.UserId == uid && d.DownloadedAt >= now.AddDays(-7));
+
+            var downloadsLastWeek = await _context.DocumentDownloads
+                .CountAsync(d => d.UserId == uid
+                    && d.DownloadedAt >= now.AddDays(-14)
+                    && d.DownloadedAt < now.AddDays(-7));
+
+            var studyMinutesTotal = await _context.StudyTimes
+                .Where(st => st.UserId == uid && st.DurationMinutes != null)
+                .SumAsync(st => st.DurationMinutes ?? 0);
+
+            var studyMinutesThisWeek = await _context.StudyTimes
+                .Where(st => st.UserId == uid && st.DurationMinutes != null && st.StartTime >= now.AddDays(-7))
+                .SumAsync(st => st.DurationMinutes ?? 0);
+
+            var studyMinutesLastWeek = await _context.StudyTimes
+                .Where(st => st.UserId == uid && st.DurationMinutes != null
+                    && st.StartTime >= now.AddDays(-14)
+                    && st.StartTime < now.AddDays(-7))
+                .SumAsync(st => st.DurationMinutes ?? 0);
+
+            var downloadsBySubject = await _context.DocumentDownloads
+                .Where(d => d.UserId == uid)
+                .Include(d => d.Document)
+                .GroupBy(d => d.Document.CourseCode)
+                .Select(g => new
+                {
+                    subject = g.Key,
+                    downloads = g.Count()
+                })
+                .ToListAsync();
+
+            var studyBySubject = await _context.StudyTimes
+                .Where(st => st.UserId == uid && st.DurationMinutes != null && !string.IsNullOrEmpty(st.Subject))
+                .GroupBy(st => st.Subject!)
+                .Select(g => new
+                {
+                    subject = g.Key,
+                    totalMinutes = g.Sum(st => st.DurationMinutes ?? 0)
+                })
+                .ToListAsync();
+
+            var allSubjects = downloadsBySubject.Select(d => d.subject)
+                .Union(studyBySubject.Select(s => s.subject))
+                .Distinct()
+                .ToList();
+
+            var subjectPerformance = allSubjects.Select(subject =>
+            {
+                var downloads = downloadsBySubject.FirstOrDefault(d => d.subject == subject)?.downloads ?? 0;
+                var studyMinutes = studyBySubject.FirstOrDefault(s => s.subject == subject)?.totalMinutes ?? 0;
+                var engagementScore = Math.Min(100, downloads * 20 + studyMinutes / 3);
+
+                return new
+                {
+                    subject,
+                    downloads,
+                    studyMinutes,
+                    engagementScore = (int)engagementScore
+                };
+            })
+            .OrderByDescending(s => s.engagementScore)
+            .Take(10)
+            .ToList();
+
+            var weekStarts = GetLastSixWeekStarts(now);
+            var trendResults = new List<object>();
+            foreach (var weekStart in weekStarts)
+            {
+                var index = weekStarts.IndexOf(weekStart);
+                var weekEnd = index < weekStarts.Count - 1 ? weekStarts[index + 1] : now.AddDays(1);
+                var weekDownloads = await _context.DocumentDownloads
+                    .CountAsync(d => d.UserId == uid && d.DownloadedAt >= weekStart && d.DownloadedAt < weekEnd);
+                var weekStudyMinutes = await _context.StudyTimes
+                    .Where(st => st.UserId == uid && st.DurationMinutes != null
+                        && st.StartTime >= weekStart && st.StartTime < weekEnd)
+                    .SumAsync(st => st.DurationMinutes ?? 0);
+
+                trendResults.Add(new
+                {
+                    week = weekStart.ToString("MMM dd"),
+                    downloads = weekDownloads,
+                    studyHours = Math.Round(weekStudyMinutes / 60.0, 1),
+                    engagementScore = Math.Min(100, weekDownloads * 15 + weekStudyMinutes / 5)
+                });
+            }
+
+            var uniqueDocumentsDownloaded = await _context.DocumentDownloads
+                .Where(d => d.UserId == uid)
+                .Select(d => d.DocumentId)
+                .Distinct()
+                .CountAsync();
+
+            var overallProgress = totalDocuments > 0
+                ? (int)Math.Round((double)uniqueDocumentsDownloaded / totalDocuments * 100)
+                : 0;
+
+            var bestSubject = subjectPerformance.FirstOrDefault();
+
+            var downloadWeeklyChange = downloadsLastWeek > 0
+                ? Math.Round((double)(downloadsThisWeek - downloadsLastWeek) / downloadsLastWeek * 100, 0)
+                : downloadsThisWeek > 0 ? 100 : 0;
+
+            var studyWeeklyChange = studyMinutesLastWeek > 0
+                ? Math.Round((double)(studyMinutesThisWeek - studyMinutesLastWeek) / studyMinutesLastWeek * 100, 0)
+                : studyMinutesThisWeek > 0 ? 100 : 0;
+
+            return Ok(new
+            {
+                overallProgress,
+                totalDownloads,
+                downloadsThisWeek,
+                downloadWeeklyChange,
+                uniqueDocumentsDownloaded,
+                totalDocuments,
+                studyTime = new
+                {
+                    totalHours = Math.Round(studyMinutesTotal / 60.0, 1),
+                    thisWeekHours = Math.Round(studyMinutesThisWeek / 60.0, 1),
+                    weeklyChangePercent = studyWeeklyChange
+                },
+                bestSubject = bestSubject == null ? null : new
+                {
+                    bestSubject.subject,
+                    score = bestSubject.engagementScore
+                },
+                subjectPerformance,
+                weeklyTrend = trendResults,
+                studyTimeBySubject = studyBySubject
+                    .OrderByDescending(s => s.totalMinutes)
+                    .Take(10)
+                    .Select(s => new { s.subject, s.totalMinutes })
+            });
+        }
+
+        private static List<DateTime> GetLastSixWeekStarts(DateTime now)
+        {
+            var starts = new List<DateTime>();
+            var today = now.Date;
+            var daysSinceMonday = ((int)today.DayOfWeek + 6) % 7;
+            var thisWeekStart = today.AddDays(-daysSinceMonday);
+
+            for (var i = 5; i >= 0; i--)
+                starts.Add(thisWeekStart.AddDays(-7 * i));
+
+            return starts;
         }
 
         [HttpGet("download/{id:int}")]

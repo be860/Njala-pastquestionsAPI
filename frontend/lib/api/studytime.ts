@@ -18,8 +18,14 @@ export interface StudyStats {
   }>;
 }
 
+export interface ActiveStudySession {
+  id: string;
+  startTime: string;
+  subject?: string;
+}
+
 export const studyTimeApi = {
-  startSession: async (subject?: string): Promise<{ id: string; startTime: string }> => {
+  startSession: async (subject?: string): Promise<{ id: string; startTime: string; resumed?: boolean }> => {
     return apiRequest('/study-time/start', {
       method: 'POST',
       body: JSON.stringify({ subject }),
@@ -35,6 +41,16 @@ export const studyTimeApi = {
     return apiRequest(`/study-time/end/${sessionId}`, {
       method: 'POST',
     });
+  },
+
+  endActiveSession: async (): Promise<{ message?: string; id?: string; durationMinutes?: number }> => {
+    return apiRequest('/study-time/end-active', {
+      method: 'POST',
+    });
+  },
+
+  getActiveSession: async (): Promise<ActiveStudySession> => {
+    return apiRequest('/study-time/active');
   },
 
   getStats: async (): Promise<StudyStats> => {
