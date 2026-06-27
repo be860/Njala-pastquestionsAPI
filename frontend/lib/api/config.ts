@@ -1,5 +1,14 @@
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.njalapastquestions.site/api';
+const DEFAULT_API_BASE_URL = 'https://api.njalapastquestions.site/api';
+
+function normalizeApiBaseUrl(url: string): string {
+  const trimmed = url.trim().replace(/\/+$/, '');
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+}
+
+const API_BASE_URL = normalizeApiBaseUrl(
+  process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE_URL
+);
 
 export const API_CONFIG = {
   baseURL: API_BASE_URL,

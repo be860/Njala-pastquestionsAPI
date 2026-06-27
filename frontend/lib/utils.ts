@@ -1,4 +1,5 @@
 import { clsx, type ClassValue } from 'clsx'
+import { API_CONFIG } from '@/lib/api/config'
 import { twMerge } from 'tailwind-merge'
 
 export function cn(...inputs: ClassValue[]) {
@@ -37,8 +38,7 @@ export function resolveAvatarUrl(avatarUrl?: string | null): string | null {
   }
 
   // Remove trailing /api from the configured base URL so we can serve static files
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://api.njalapastquestions.site/api'
-  const host = apiBase.replace(/\/api\/?$/, '')
+  const host = API_CONFIG.baseURL.replace(/\/api\/?$/, '')
 
   if (avatarUrl.startsWith('/')) {
     return `${host}${avatarUrl}`
