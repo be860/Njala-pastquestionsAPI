@@ -13,11 +13,16 @@ namespace NjalaAPI.Controllers
     public class AITutorController : ControllerBase
     {
         private readonly GroqService _groqService;
+        private readonly DocumentSearchService _documentSearch;
         private readonly AppDbContext _context;
 
-        public AITutorController(GroqService groqService, AppDbContext context)
+        public AITutorController(
+            GroqService groqService,
+            DocumentSearchService documentSearch,
+            AppDbContext context)
         {
             _groqService = groqService;
+            _documentSearch = documentSearch;
             _context = context;
         }
 
@@ -40,6 +45,8 @@ namespace NjalaAPI.Controllers
                 {
                     s.Id,
                     s.Title,
+                    s.DocumentId,
+                    s.DocumentTitle,
                     s.CreatedAt,
                     s.UpdatedAt,
                     messageCount = s.Messages.Count
@@ -53,11 +60,28 @@ namespace NjalaAPI.Controllers
         public async Task<IActionResult> CreateSession([FromBody] CreateSessionDto? dto)
         {
             var userId = GetUserId();
+            var title = string.IsNullOrWhiteSpace(dto?.Title) ? "New Chat" : dto.Title.Trim();
+            int? documentId = dto?.DocumentId;
+            string? documentTitle = null;
+
+            if (documentId.HasValue)
+            {
+                var doc = await _context.Documents.FindAsync(documentId.Value);
+                if (doc == null)
+                    return NotFound("Document not found.");
+
+                documentTitle = doc.Title;
+                if (string.IsNullOrWhiteSpace(dto?.Title))
+                    title = TruncateTitle($"Study: {doc.Title}");
+            }
+
             var session = new ChatSession
             {
                 Id = Guid.NewGuid(),
                 UserId = userId,
-                Title = string.IsNullOrWhiteSpace(dto?.Title) ? "New Chat" : dto.Title.Trim(),
+                Title = title,
+                DocumentId = documentId,
+                DocumentTitle = documentTitle,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -65,7 +89,16 @@ namespace NjalaAPI.Controllers
             _context.ChatSessions.Add(session);
             await _context.SaveChangesAsync();
 
-            return Ok(new { session.Id, session.Title, session.CreatedAt, session.UpdatedAt });
+            return Ok(new
+            {
+                session.Id,
+                session.Title,
+                session.DocumentId,
+                session.DocumentTitle,
+                session.CreatedAt,
+                session.UpdatedAt,
+                messageCount = 0
+            });
         }
 
         [HttpGet("sessions/{id:guid}")]
@@ -82,6 +115,8 @@ namespace NjalaAPI.Controllers
             {
                 session.Id,
                 session.Title,
+                session.DocumentId,
+                session.DocumentTitle,
                 session.CreatedAt,
                 session.UpdatedAt,
                 messages = session.Messages.Select(m => new
@@ -121,6 +156,26 @@ namespace NjalaAPI.Controllers
             if (session == null) return NotFound();
 
             var question = dto.Question.Trim();
+            var targetDocumentId = dto.DocumentId ?? session.DocumentId;
+
+            Document? document = await _documentSearch.FindBestMatchAsync(question, targetDocumentId);
+
+            if (document != null)
+            {
+                session.DocumentId = document.Id;
+                session.DocumentTitle = document.Title;
+            }
+
+            string? documentContext = null;
+            if (document != null)
+                documentContext = await _documentSearch.BuildDocumentContextAsync(document);
+            else if (DocumentSearchService.LooksLikeDocumentQuestion(question))
+            {
+                documentContext =
+                    "No matching past question document was found in the library for this request. " +
+                    "Tell the student you could not locate the document, ask them to provide the exact document title, " +
+                    "and offer general study help in the meantime.";
+            }
 
             var historyMessages = await _context.ChatMessages
                 .AsNoTracking()
@@ -132,7 +187,7 @@ namespace NjalaAPI.Controllers
                 .Select(m => new TutorChatMessage(m.Role, m.Content))
                 .Append(new TutorChatMessage("user", question));
 
-            var answer = await _groqService.AskTutorWithHistoryAsync(history);
+            var answer = await _groqService.AskTutorWithHistoryAsync(history, documentContext);
 
             var userMessage = new ChatMessage
             {
@@ -158,7 +213,9 @@ namespace NjalaAPI.Controllers
             var newTitle = session.Title;
             if (session.Title == "New Chat")
             {
-                newTitle = question.Length > 50 ? question[..50] + "..." : question;
+                newTitle = document != null
+                    ? TruncateTitle($"Study: {document.Title}")
+                    : TruncateTitle(question);
             }
 
             session.Title = newTitle;
@@ -171,6 +228,13 @@ namespace NjalaAPI.Controllers
                 question,
                 answer,
                 sessionTitle = newTitle,
+                referencedDocument = document == null ? null : new
+                {
+                    document.Id,
+                    document.Title,
+                    document.CourseCode,
+                    document.Year
+                },
                 userMessage = new { userMessage.Id, role = userMessage.Role, content = userMessage.Content, userMessage.CreatedAt },
                 assistantMessage = new { assistantMessage.Id, role = assistantMessage.Role, content = assistantMessage.Content, assistantMessage.CreatedAt }
             });
@@ -185,15 +249,20 @@ namespace NjalaAPI.Controllers
             var answer = await _groqService.AskTutorAsync(dto.Question);
             return Ok(new { question = dto.Question, answer });
         }
+
+        private static string TruncateTitle(string title)
+            => title.Length > 50 ? title[..50] + "..." : title;
     }
 
     public class TutorQuestionDto
     {
         public string Question { get; set; } = string.Empty;
+        public int? DocumentId { get; set; }
     }
 
     public class CreateSessionDto
     {
         public string? Title { get; set; }
+        public int? DocumentId { get; set; }
     }
 }

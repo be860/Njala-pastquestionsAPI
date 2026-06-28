@@ -6,6 +6,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/** Formats study duration for display (minutes-only, hours-only, or combined). */
+export function formatStudyDuration(totalMinutes: number): string {
+  const minutes = Math.max(0, Math.round(totalMinutes))
+  if (minutes === 0) return '0 min'
+  if (minutes < 60) return `${minutes} min`
+
+  const hours = Math.floor(minutes / 60)
+  const remainder = minutes % 60
+  const hourLabel = hours === 1 ? 'hr' : 'hrs'
+
+  if (remainder === 0) return `${hours} ${hourLabel}`
+  return `${hours} ${hourLabel} ${remainder} min`
+}
+
 /**
  * Builds uppercase initials from a full name string.
  * Falls back to an empty string if no name is provided.

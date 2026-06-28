@@ -21,6 +21,7 @@ import { TrendingUp, Award, BookOpen, Clock, Loader2 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { dashboardApi, type StudentAnalytics } from "@/lib/api/dashboard"
 import { useToast } from "@/hooks/use-toast"
+import { formatStudyDuration } from "@/lib/utils"
 
 export default function AnalyticsPage() {
   const { isAuthenticated, user } = useAuth()
@@ -105,14 +106,22 @@ export default function AnalyticsPage() {
     {
       icon: Clock,
       label: "Study Time",
-      value: `${analytics.studyTime.totalHours} hrs`,
-      change: `${analytics.studyTime.thisWeekHours} hrs this week (${formatChange(analytics.studyTime.weeklyChangePercent, "%")})`,
+      value: formatStudyDuration(
+        analytics.studyTime.totalMinutes ??
+          Math.round(analytics.studyTime.totalHours * 60)
+      ),
+      change: `${formatStudyDuration(
+        analytics.studyTime.thisWeekMinutes ??
+          Math.round(analytics.studyTime.thisWeekHours * 60)
+      )} this week (${formatChange(analytics.studyTime.weeklyChangePercent, "%")})`,
       color: "from-orange-500 to-orange-600",
     },
   ]
 
   const hasWeeklyData = analytics.weeklyTrend.some(
-    (w) => w.downloads > 0 || w.studyHours > 0
+    (w) =>
+      w.downloads > 0 ||
+      (w.studyMinutes ?? Math.round((w.studyHours ?? 0) * 60)) > 0
   )
 
   const hasSubjectData = analytics.subjectPerformance.length > 0
@@ -161,6 +170,15 @@ export default function AnalyticsPage() {
                     border: "1px solid var(--color-border)",
                     borderRadius: "8px",
                   }}
+                  formatter={(value, name, props) => {
+                    if (name === "Study Time") {
+                      const minutes =
+                        props.payload.studyMinutes ??
+                        Math.round((props.payload.studyHours ?? 0) * 60)
+                      return [formatStudyDuration(minutes), name]
+                    }
+                    return [value, name]
+                  }}
                 />
                 <Legend />
                 <Line
@@ -176,7 +194,7 @@ export default function AnalyticsPage() {
                   dataKey="studyHours"
                   stroke="#f97316"
                   strokeWidth={2}
-                  name="Study Hours"
+                  name="Study Time"
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -233,7 +251,7 @@ export default function AnalyticsPage() {
                     <p className="font-medium mb-1">{subject.subject}</p>
                     <p className="text-sm text-muted-foreground">
                       {subject.downloads} download{subject.downloads === 1 ? "" : "s"} ·{" "}
-                      {Math.round(subject.studyMinutes / 60 * 10) / 10} hrs studied
+                      {formatStudyDuration(subject.studyMinutes)} studied
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
@@ -277,7 +295,7 @@ export default function AnalyticsPage() {
                     <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value, _name, props) => [`${props.payload.minutes} min`, "Study Time"]} />
+                <Tooltip formatter={(_value, _name, props) => [formatStudyDuration(props.payload.minutes), "Study Time"]} />
               </PieChart>
             </ResponsiveContainer>
           ) : (

@@ -13,13 +13,32 @@ namespace NjalaAPI.Services
             await file.CopyToAsync(stream);
             stream.Position = 0;
 
+            return ExtractFromStream(stream, ext);
+        }
+
+        public Task<string> ExtractTextFromPathAsync(string filePath)
+        {
+            var ext = Path.GetExtension(filePath).ToLowerInvariant();
+            using var stream = File.OpenRead(filePath);
+            return Task.FromResult(ExtractFromStream(stream, ext));
+        }
+
+        private string ExtractFromStream(Stream stream, string ext)
+        {
             return ext switch
             {
-                ".txt" => Encoding.UTF8.GetString(stream.ToArray()),
+                ".txt" => Encoding.UTF8.GetString(ReadStreamBytes(stream)),
                 ".pdf" => ExtractTextFromPdf(stream),
                 ".docx" => ExtractTextFromDocx(stream),
                 _ => $"[Unsupported file type: {ext}]. Please add text extraction for this format."
             };
+        }
+
+        private static byte[] ReadStreamBytes(Stream stream)
+        {
+            using var ms = new MemoryStream();
+            stream.CopyTo(ms);
+            return ms.ToArray();
         }
 
         private string ExtractTextFromPdf(Stream pdfStream)

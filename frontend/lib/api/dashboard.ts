@@ -28,7 +28,9 @@ export interface StudentAnalytics {
   totalDocuments: number;
   studyTime: {
     totalHours: number;
+    totalMinutes: number;
     thisWeekHours: number;
+    thisWeekMinutes: number;
     weeklyChangePercent: number;
   };
   bestSubject: {
@@ -45,6 +47,7 @@ export interface StudentAnalytics {
     week: string;
     downloads: number;
     studyHours: number;
+    studyMinutes: number;
     engagementScore: number;
   }>;
   studyTimeBySubject: Array<{

@@ -8,6 +8,7 @@ import { dashboardApi } from "@/lib/api/dashboard"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { formatStudyDuration } from "@/lib/utils"
 
 export default function DashboardPage() {
   const { user, isAuthenticated } = useAuth()
@@ -24,7 +25,7 @@ export default function DashboardPage() {
       uploadDate: string
     }>,
   })
-  const [studyHours, setStudyHours] = useState(0)
+  const [studyMinutes, setStudyMinutes] = useState(0)
   const [overallProgress, setOverallProgress] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -54,7 +55,10 @@ export default function DashboardPage() {
           dashboardApi.getAnalytics(),
         ])
         setStats(dashboardData)
-        setStudyHours(analytics.studyTime.totalHours)
+        setStudyMinutes(
+          analytics.studyTime.totalMinutes ??
+            Math.round(analytics.studyTime.totalHours * 60)
+        )
         setOverallProgress(analytics.overallProgress)
       } catch (error: any) {
         if (error.message?.includes("403") || error.message?.includes("Forbidden")) {
@@ -85,7 +89,7 @@ export default function DashboardPage() {
   const quickStats = [
     { label: "Overall Progress", value: `${overallProgress}%`, change: "Documents explored" },
     { label: "Downloads", value: stats.downloadCount.toString(), change: "Total downloads" },
-    { label: "Study Time", value: `${studyHours} hrs`, change: "Tracked automatically" },
+    { label: "Study Time", value: formatStudyDuration(studyMinutes), change: "Tracked automatically" },
     { label: "Available Documents", value: stats.documentsCount.toString(), change: "Past questions" },
   ]
 

@@ -159,6 +159,7 @@ namespace NjalaAPI.Controllers
                     week = weekStart.ToString("MMM dd"),
                     downloads = weekDownloads,
                     studyHours = Math.Round(weekStudyMinutes / 60.0, 1),
+                    studyMinutes = weekStudyMinutes,
                     engagementScore = Math.Min(100, weekDownloads * 15 + weekStudyMinutes / 5)
                 });
             }
@@ -194,7 +195,9 @@ namespace NjalaAPI.Controllers
                 studyTime = new
                 {
                     totalHours = Math.Round(studyMinutesTotal / 60.0, 1),
+                    totalMinutes = studyMinutesTotal,
                     thisWeekHours = Math.Round(studyMinutesThisWeek / 60.0, 1),
+                    thisWeekMinutes = studyMinutesThisWeek,
                     weeklyChangePercent = studyWeeklyChange
                 },
                 bestSubject = bestSubject == null ? null : new

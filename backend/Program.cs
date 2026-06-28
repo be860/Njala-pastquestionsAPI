@@ -88,6 +88,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<GroqService>();
 builder.Services.AddScoped<DocumentTextExtractor>();
+builder.Services.AddScoped<DocumentSearchService>();
 
 var resendApiKey = builder.Configuration["RESEND_API_KEY"];
 var resendFromEmail = builder.Configuration["RESEND_FROM_EMAIL"];

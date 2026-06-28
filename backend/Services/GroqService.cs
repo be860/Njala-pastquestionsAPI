@@ -73,11 +73,24 @@ namespace NjalaAPI.Services
             });
         }
 
-        public async Task<string> AskTutorWithHistoryAsync(IEnumerable<TutorChatMessage> messages)
+        public async Task<string> AskTutorWithHistoryAsync(IEnumerable<TutorChatMessage> messages, string? documentContext = null)
         {
+            var systemPrompt =
+                "You are an academic tutor for Njala University students. Give clear, helpful explanations. Keep answers concise but thorough.";
+
+            if (!string.IsNullOrWhiteSpace(documentContext))
+            {
+                systemPrompt +=
+                    " The student is asking about a specific past exam document from the university library. " +
+                    "Use the document context below to answer accurately. Extract key topics, themes, and concepts when asked. " +
+                    "If the answer is not supported by the document context, say so clearly and offer general study guidance.\n\n" +
+                    "--- DOCUMENT CONTEXT ---\n" +
+                    documentContext;
+            }
+
             var chatMessages = new List<object>
             {
-                new { role = "system", content = "You are an academic tutor. Give clear, helpful explanations to university students. Keep answers concise but thorough." }
+                new { role = "system", content = systemPrompt }
             };
 
             foreach (var message in messages)
