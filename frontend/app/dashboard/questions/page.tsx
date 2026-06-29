@@ -4,7 +4,6 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Search, Filter, Download, BookOpen, ChevronRight, Loader2, Eye, MessageSquare } from "lucide-react"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useAuth } from "@/contexts/AuthContext"
@@ -305,16 +304,17 @@ export default function QuestionsPage() {
                     <Eye className="w-4 h-4" />
                     View Details
                   </Button>
-                  <Link href={`/dashboard/ai-chat?documentId=${question.id}`}>
-                    <Button
-                      variant="outline"
-                      className="flex items-center gap-2"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <MessageSquare className="w-4 h-4" />
-                      Ask AI Tutor
-                    </Button>
-                  </Link>
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      router.push(`/dashboard/ai-chat?documentId=${question.id}`)
+                    }}
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Ask AI Tutor
+                  </Button>
                 </div>
                 <Button
                   className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2"
@@ -412,12 +412,14 @@ export default function QuestionsPage() {
 
           {viewingDoc && !isViewLoading && (
             <div className="px-6 py-4 border-t border-border shrink-0 flex justify-end gap-2">
-              <Link href={`/dashboard/ai-chat?documentId=${viewingDoc.id}`}>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4" />
-                  Ask AI Tutor
-                </Button>
-              </Link>
+              <Button
+                variant="outline"
+                className="flex items-center gap-2"
+                onClick={() => router.push(`/dashboard/ai-chat?documentId=${viewingDoc.id}`)}
+              >
+                <MessageSquare className="w-4 h-4" />
+                Ask AI Tutor
+              </Button>
               <Button
                 className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2"
                 disabled={downloadingId === viewingDoc.id}
